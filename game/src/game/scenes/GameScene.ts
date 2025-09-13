@@ -158,12 +158,6 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(4500, () => t.destroy())
   }
 
-  private updateHUD() {
-    // Backward-compat wrapper
-    this.updateHUD2()
-  }
-    this.uiText.setText(`LV ${this.level}  XP ${this.xp}/${this.xpToNext}  ATK ${Math.round(this.attackRadius)}  RATE ${(this.attackCooldown/1000).toFixed(2)}s`)
-  }
 
   private scheduleAttack() {
     if (this.attackEvt) this.attackEvt.remove(false)
