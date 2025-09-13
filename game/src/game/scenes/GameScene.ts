@@ -3,6 +3,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../config'
 import { VirtualInput } from '../../input/VirtualInput'
 import { openLevelUp } from '../../ui/overlays'
 import { loadProgress } from '../../state/progress'
+import { loadRewards } from '../../state/rewards'
 
 type Enemy = Phaser.Types.Physics.Arcade.ImageWithDynamicBody
 
@@ -12,6 +13,7 @@ export class GameScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private enemies!: Phaser.Physics.Arcade.Group
   private xpOrbs!: Phaser.Physics.Arcade.Group
+  private projectiles!: Phaser.Physics.Arcade.Group
   private uiText!: Phaser.GameObjects.Text
 
   // Player stats
@@ -19,7 +21,7 @@ export class GameScene extends Phaser.Scene {
   private level = 1
   private xp = 0
   private xpToNext = 5
-  private attackRadius = 100
+  private attackRadius = 100 // used for blast reward
   private attackCooldown = 800 // ms
   private attackEvt?: Phaser.Time.TimerEvent
   private inLevelUp = false
@@ -36,6 +38,11 @@ export class GameScene extends Phaser.Scene {
   private hp = 3
   private invulnUntil = 0
   private practiceActive = false
+  private projSpeed = 300
+  private projCount = 1
+  private hasMagnet = false
+  private magnetRadius = 0
+  private hasBlast = false
 
   constructor() { super('game') }
 
@@ -70,7 +77,8 @@ export class GameScene extends Phaser.Scene {
 
     // Enemies + XP groups
     this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image })
-    this.xpOrbs = this.physics.add.group({ allowGravity: false, immovable: true })
+    this.xpOrbs = this.physics.add.group({ allowGravity: false })
+    this.projectiles = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image })
     for (let i = 0; i < 6; i++) this.spawnEnemy()
 
     // Damage on touch (with brief i-frames)
@@ -83,6 +91,12 @@ export class GameScene extends Phaser.Scene {
       o.disableBody(true, true)
       this.checkLevelUp()
       this.updateHUD2()
+    })
+
+    this.physics.add.overlap(this.projectiles, this.enemies, (proj, e) => {
+      const p = proj as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
+      p.disableBody(true, true)
+      this.killEnemy(e as Enemy)
     })
 
     // Difficulty presets + stage scaling
@@ -120,6 +134,21 @@ export class GameScene extends Phaser.Scene {
 
     // Auto-attack
     this.scheduleAttack()
+
+    // Rewards
+    const rewards = loadRewards()
+    if (rewards.includes('magnet')) { this.hasMagnet = true; this.magnetRadius = 100 }
+    if (rewards.includes('blast')) {
+      this.hasBlast = true
+      this.time.addEvent({ delay: 5000, loop: true, callback: () => this.radialBlast() })
+    }
+
+    // Click feedback
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      const fx = this.add.circle(p.worldX, p.worldY, 6, 0xffffff, 0.3)
+      this.tweens.add({ targets: fx, radius: 20, alpha: 0, duration: 200, onComplete: () => fx.destroy() })
+      this.playSfx(880)
+    })
 
     // UI
     this.uiText = this.add.text(8, 8, '', { color: '#e7e7ef', fontSize: '14px' }).setScrollFactor(0)
@@ -166,17 +195,30 @@ export class GameScene extends Phaser.Scene {
 
   private doAttack() {
     if (this.inLevelUp) return
-    // Visual pulse (slightly cheaper)
-    const circle = this.add.circle(this.player.x, this.player.y, 6, 0x6ea8fe, 0.18)
-    this.tweens.add({ targets: circle, radius: this.attackRadius, alpha: 0, duration: 180, ease: 'Quad.easeOut', onComplete: () => circle.destroy() })
+    this.playSfx(440)
+    for (let i = 0; i < this.projCount; i++) {
+      const angle = this.player.rotation + (i - (this.projCount - 1) / 2) * Phaser.Math.DegToRad(10)
+      let b = this.projectiles.getFirstDead(false) as Phaser.Types.Physics.Arcade.ImageWithDynamicBody | null
+      if (!b) {
+        b = this.projectiles.create(this.player.x, this.player.y, 'bullet') as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
+      } else {
+        b.enableBody(true, this.player.x, this.player.y, true, true)
+        b.setTexture('bullet')
+      }
+      b.setRotation(angle)
+      this.physics.velocityFromRotation(angle, this.projSpeed, b.body.velocity)
+      this.time.delayedCall(1500, () => b!.disableBody(true, true))
+    }
+  }
 
+  private radialBlast() {
+    const circle = this.add.circle(this.player.x, this.player.y, 6, 0x6ea8fe, 0.18)
+    this.tweens.add({ targets: circle, radius: this.attackRadius * 1.4, alpha: 0, duration: 200, ease: 'Quad.easeOut', onComplete: () => circle.destroy() })
     const list = this.enemies.getChildren() as Phaser.GameObjects.Image[]
     for (const e of list) {
       const dx = e.x - this.player.x
       const dy = e.y - this.player.y
-      if (dx*dx + dy*dy <= this.attackRadius*this.attackRadius) {
-        this.killEnemy(e as any)
-      }
+      if (dx*dx + dy*dy <= (this.attackRadius*1.4)*(this.attackRadius*1.4)) this.killEnemy(e as any)
     }
   }
 
@@ -189,12 +231,14 @@ export class GameScene extends Phaser.Scene {
       orb.setTexture('xp')
     }
     orb.setData('value', value)
+    orb.setVelocity(0, 0)
   }
 
   private killEnemy(e: Enemy) {
     this.dropXP(e.x, e.y, 1)
     this.kills += 1
     e.disableBody(true, true)
+    this.playSfx(330)
     if (this.practiceActive && this.enemies.countActive(true) === 0) {
       this.time.delayedCall(300, () => window.dispatchEvent(new CustomEvent('tutorial:play')))
     }
@@ -214,20 +258,26 @@ export class GameScene extends Phaser.Scene {
     if (this.attackEvt) this.attackEvt.paused = true
     // Present 3 upgrades
     const pool = [
-      '+20% Attack Rate',
-      '+10% Attack Radius',
+      '+20% Fire Rate',
+      '+1 Projectile',
       '+10% Move Speed',
     ]
+    if (this.hasMagnet) pool.push('+25% Magnet Radius')
+    if (this.hasBlast) pool.push('+20% Blast Radius')
     const picks = Phaser.Utils.Array.Shuffle(pool).slice(0, 3)
     const choice = await openLevelUp(picks)
     const selected = picks[choice]
-    if (selected.includes('Rate')) {
+    if (selected.includes('Fire Rate')) {
       this.attackCooldown = Math.max(200, Math.round(this.attackCooldown * 0.8))
       this.scheduleAttack()
-    } else if (selected.includes('Radius')) {
-      this.attackRadius = Math.min(280, this.attackRadius * 1.1)
+    } else if (selected.includes('Projectile')) {
+      this.projCount = Math.min(5, this.projCount + 1)
     } else if (selected.includes('Move Speed')) {
       this.speed = Math.min(400, Math.round(this.speed * 1.1))
+    } else if (selected.includes('Magnet')) {
+      this.magnetRadius = Math.min(300, this.magnetRadius * 1.25)
+    } else if (selected.includes('Blast')) {
+      this.attackRadius = Math.min(400, this.attackRadius * 1.2)
     }
     this.inLevelUp = false
     if (this.attackEvt) this.attackEvt.paused = false
@@ -298,6 +348,21 @@ export class GameScene extends Phaser.Scene {
       const spd = (e.getData('spd') as number) || 60
       e.setVelocity((dx / len) * spd, (dy / len) * spd)
     }
+
+    if (this.hasMagnet) {
+      const orbs = this.xpOrbs.getChildren() as Phaser.Types.Physics.Arcade.ImageWithDynamicBody[]
+      for (const o of orbs) {
+        if (!o.active) continue
+        const dx = this.player.x - o.x
+        const dy = this.player.y - o.y
+        const dist = Math.hypot(dx, dy)
+        if (dist < this.magnetRadius) {
+          this.physics.velocityFromRotation(Math.atan2(dy, dx), 120, o.body.velocity)
+        } else {
+          o.setVelocity(0, 0)
+        }
+      }
+    }
   }
 
   private onHitEnemy(_e: Enemy) {
@@ -308,6 +373,19 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 })
     if (this.hp <= 0) this.endRun('defeat')
     this.updateHUD2()
+  }
+
+  private playSfx(freq: number) {
+    const ctx = (this.sound as any).context as AudioContext | undefined
+    if (!ctx) return
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0.1, ctx.currentTime)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.1)
   }
 
   private clearEnemies() {
