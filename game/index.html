@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f1220" />
+    <title>Limitless Survivor (A11y Web Game)</title>
+  </head>
+  <body>
+    <div id="app" aria-live="polite"></div>
+
+    <!-- Top HUD / Controls -->
+    <div id="topbar" class="hud" aria-hidden="true">
+      <button id="btn-settings" class="hud-btn" aria-haspopup="dialog" aria-controls="settings-overlay">Settings</button>
+      <button id="btn-ptt" class="hud-btn" aria-pressed="false" aria-label="Push to talk">🎤 PTT</button>
+      <span id="face-indicator" class="hud-indicator" aria-hidden="true" title="Face gesture direction"></span>
+    </div>
+
+    <!-- Start Overlay (gesture/audio gate) -->
+    <div id="start-overlay" class="overlay visible" role="dialog" aria-modal="true" aria-labelledby="start-title">
+      <div class="overlay-card">
+        <h1 id="start-title">Limitless Survivor</h1>
+        <p>One‑click movement, auto‑attack, and accessible controls.</p>
+        <button id="btn-start" class="primary">Play</button>
+        <p class="hint">Tip: Open Settings to choose click‑to‑move or pointer‑follow.</p>
+      </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settings-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" aria-hidden="true">
+      <div class="overlay-card">
+        <h2 id="settings-title">Settings</h2>
+        <section>
+          <h3>Movement Mode</h3>
+          <div role="radiogroup" aria-label="Movement mode">
+            <label><input type="radio" name="moveMode" value="click" checked /> Click‑to‑Move</label>
+            <label><input type="radio" name="moveMode" value="follow" /> Pointer‑Follow</label>
+          </div>
+          <div class="row">
+            <label for="rng-arrive">Arrival radius</label>
+            <input id="rng-arrive" type="range" min="4" max="24" value="8" />
+          </div>
+          <div class="row">
+            <label for="rng-deadzone">Follow dead‑zone</label>
+            <input id="rng-deadzone" type="range" min="0" max="48" value="16" />
+          </div>
+          <div class="row">
+            <label for="rng-gain">Follow speed gain</label>
+            <input id="rng-gain" type="range" min="50" max="200" step="5" value="100" />
+          </div>
+          <div class="row">
+            <label for="rng-maxdist">Follow max distance</label>
+            <input id="rng-maxdist" type="range" min="80" max="600" step="20" value="240" />
+          </div>
+          <div class="row">
+            <label for="rng-curve">Follow responsiveness</label>
+            <input id="rng-curve" type="range" min="50" max="200" step="5" value="100" />
+          </div>
+        </section>
+        <section>
+          <h3>Accessibility</h3>
+          <label><input type="checkbox" id="chk-contrast" /> High‑contrast theme</label>
+          <div class="row">
+            <label for="rng-text">Text size</label>
+            <input id="rng-text" type="range" min="90" max="150" value="100" />
+          </div>
+          <label><input type="checkbox" id="chk-scan" /> One‑switch scan mode (beta)</label>
+          <div class="row">
+            <label for="rng-scan">Scan speed</label>
+            <input id="rng-scan" type="range" min="600" max="2400" step="100" value="1200" />
+          </div>
+          <label><input type="checkbox" id="chk-dwell" /> Dwell to activate</label>
+          <div class="row">
+            <label for="rng-dwell">Dwell time</label>
+            <input id="rng-dwell" type="range" min="500" max="2000" step="100" value="900" />
+          </div>
+          <label><input type="checkbox" id="chk-face" /> Face gestures (beta)</label>
+          <div class="row">
+            <label for="rng-tilt">Tilt sensitivity</label>
+            <input id="rng-tilt" type="range" min="40" max="100" step="2" value="60" />
+          </div>
+          <div class="row">
+            <label for="rng-nudge">Nudge distance</label>
+            <input id="rng-nudge" type="range" min="80" max="320" step="10" value="160" />
+          </div>
+          <div class="row">
+            <label for="rng-repeat">Nudge repeat</label>
+            <input id="rng-repeat" type="range" min="200" max="600" step="20" value="300" />
+          </div>
+        </section>
+        <section>
+          <h3>Difficulty</h3>
+          <div role="radiogroup" aria-label="Difficulty">
+            <label><input type="radio" name="difficulty" value="relaxed" /> Relaxed</label>
+            <label><input type="radio" name="difficulty" value="standard" checked /> Standard</label>
+            <label><input type="radio" name="difficulty" value="intense" /> Intense</label>
+          </div>
+        </section>
+        <div class="row end">
+          <button id="btn-close-settings" class="secondary">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level Up Overlay (placeholder) -->
+    <div id="levelup-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="lvlup-title" aria-hidden="true">
+      <div class="overlay-card">
+        <h2 id="lvlup-title">Level Up</h2>
+        <p>Choose an upgrade:</p>
+        <div id="lvlup-choices" class="choices" role="listbox" aria-label="Upgrades">
+          <button role="option" data-choice="1">+20% Attack Rate (1)</button>
+          <button role="option" data-choice="2">+1 Projectile (2)</button>
+          <button role="option" data-choice="3">+10% Move Speed (3)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tutorial Overlay -->
+    <div id="tutorial-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="tut-title" aria-hidden="true">
+      <div class="overlay-card">
+        <h2 id="tut-title">튜토리얼</h2>
+        <ol>
+          <li>이동: 클릭하거나 포인터‑팔로우를 켜세요.</li>
+          <li>공격: 자동으로 발동합니다.</li>
+          <li>레벨업: 세 가지 업그레이드 중 고르세요. 음성 “하나/둘/셋” 가능.</li>
+        </ol>
+        <div class="row">
+          <button id="btn-tut-practice" class="secondary">연습 시작</button>
+          <button id="btn-tut-skip" class="primary">바로 시작</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Run Complete Overlay -->
+    <div id="runover-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="runover-title" aria-hidden="true">
+      <div class="overlay-card">
+        <h2 id="runover-title">Run Complete</h2>
+        <p id="runover-summary">Summary</p>
+        <p id="runover-reward">Tokens earned: 0</p>
+        <div class="row">
+          <button id="btn-next-stage" class="primary" data-scan>Next Stage</button>
+          <button id="btn-retry" class="secondary" data-scan>Retry</button>
+          <button id="btn-menu" class="secondary" data-scan>Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
