@@ -29,12 +29,16 @@ export class VirtualInput {
   }
 
   // Voice: move a fixed step in a direction without continuous input
-  nudgeTowards(dir: 'up' | 'down' | 'left' | 'right', distance = 160) {
-    const { x, y } = this.scene.cameras.main
-    // Use player's current world position via provided coords at call site if needed
-    const player = (this.scene as any).player as Phaser.GameObjects.Image | undefined
-    const px = player ? player.x : x + this.scene.cameras.main.width / 2
-    const py = player ? player.y : y + this.scene.cameras.main.height / 2
+  // Accept current player position explicitly to avoid relying on private fields.
+  nudgeTowards(
+    dir: 'up' | 'down' | 'left' | 'right',
+    distance = 160,
+    playerX?: number,
+    playerY?: number,
+  ) {
+    const { x: camX, y: camY } = this.scene.cameras.main
+    const px = typeof playerX === 'number' ? playerX : camX + this.scene.cameras.main.width / 2
+    const py = typeof playerY === 'number' ? playerY : camY + this.scene.cameras.main.height / 2
     let tx = px, ty = py
     if (dir === 'up') ty -= distance
     else if (dir === 'down') ty += distance

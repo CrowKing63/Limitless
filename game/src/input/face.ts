@@ -27,13 +27,13 @@ async function ensureLibs() {
 async function initLandmarker() {
   await ensureLibs()
   const fileset = await FilesetResolver.forVisionTasks(
-    // CDN base; version pinned by npm install in node_modules
-    // When bundling, tasks-vision will still fetch WASM from this base.
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+    // CDN base pinned to a specific version to avoid breaking changes.
+    // Keep this in sync with package.json dependency version.
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm'
   )
   landmarker = await FaceLandmarker.createFromOptions(fileset, {
     baseOptions: {
-      modelAssetPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm/face_landmarker.task',
+      modelAssetPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm/face_landmarker.task',
     },
     runningMode: 'VIDEO',
     numFaces: 1,
@@ -111,34 +111,42 @@ export async function initFaceInput(toggleEl: HTMLInputElement, opts: Options) {
 
 export async function start(opts: Options) {
   if (running) return
-  await initLandmarker()
-  // Camera setup
-  videoEl = document.createElement('video')
-  videoEl.autoplay = true
-  videoEl.playsInline = true
-  videoEl.muted = true
+  try {
+    await initLandmarker()
+    // Camera setup
+    videoEl = document.createElement('video')
+    videoEl.autoplay = true
+    videoEl.playsInline = true
+    videoEl.muted = true
 
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 360 } })
-  videoEl.srcObject = stream
-  await videoEl.play()
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 360 } })
+    videoEl.srcObject = stream
+    await videoEl.play()
 
-  running = true
-  lastDir = null
-  // Keep settings updated live
-  window.addEventListener('settings:changed', (e: Event) => {
-    const d = (e as CustomEvent).detail
-    settingsCache = { ...settingsCache, ...d }
-  })
+    running = true
+    lastDir = null
+    // Keep settings updated live
+    window.addEventListener('settings:changed', (e: Event) => {
+      const d = (e as CustomEvent).detail
+      settingsCache = { ...settingsCache, ...d }
+    })
 
-  loop(dir => {
-    // Map to our virtual nudge semantics
-    if (dir) {
-      window.dispatchEvent(new CustomEvent('face:dir', { detail: dir }))
-      opts.onMove(dir)
-    } else {
-      window.dispatchEvent(new CustomEvent('face:dir', { detail: null }))
-    }
-  })
+    loop(dir => {
+      // Map to our virtual nudge semantics
+      if (dir) {
+        window.dispatchEvent(new CustomEvent('face:dir', { detail: dir }))
+        opts.onMove(dir)
+      } else {
+        window.dispatchEvent(new CustomEvent('face:dir', { detail: null }))
+      }
+    })
+  } catch (err) {
+    console.warn('Face input init failed:', err)
+    // Emit neutral state and stop to leave UI consistent
+    window.dispatchEvent(new CustomEvent('face:dir', { detail: null }))
+    stop()
+    throw err
+  }
 }
 
 export function stop() {

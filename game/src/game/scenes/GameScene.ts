@@ -69,7 +69,7 @@ export class GameScene extends Phaser.Scene {
       if (!detail) return
       if (detail.type === 'move') {
         const dist = (window as any)._settings?.faceNudgeDistance ?? 160
-        this.inputLayer.nudgeTowards(detail.dir, dist)
+        this.inputLayer.nudgeTowards(detail.dir, dist, this.player.x, this.player.y)
       } else if (detail.type === 'stop') {
         this.inputLayer.stop()
       }
@@ -106,8 +106,9 @@ export class GameScene extends Phaser.Scene {
     else if (diff === 'intense') { spawnDelay = 1000; this.enemySpeedMul = 1.2 }
     this.enemySpeedMul *= 1 + (this.stage - 1) * 0.08
     spawnDelay = Math.max(700, Math.round(spawnDelay - (this.stage - 1) * 120))
-    // Spawn loop
-    this.spawnEvt = this.time.addEvent({ delay: spawnDelay, loop: true, callback: () => this.spawnEnemy() })
+    // Spawn loop (track baseline/current for perf auto-tuning)
+    this.baseSpawnDelay = spawnDelay
+    this.setSpawnDelay(spawnDelay)
 
     // Tutorial / practice signals (bind once)
     window.addEventListener('tutorial:practice', () => {

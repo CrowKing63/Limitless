@@ -83,8 +83,17 @@ btnSettings.addEventListener('click', () => openSettings())
 btnCloseSettings.addEventListener('click', () => closeSettings())
 initSpeech(btnPTT)
 chkFace.addEventListener('change', async () => {
-  if (chkFace.checked) await startFace({ onMove: dir => window.dispatchEvent(new CustomEvent('voice:command', { detail: { type: 'move', dir } })) })
-  else stopFace()
+  if (chkFace.checked) {
+    try {
+      await startFace({ onMove: dir => window.dispatchEvent(new CustomEvent('voice:command', { detail: { type: 'move', dir } })) })
+    } catch {
+      chkFace.checked = false
+      // Non-blocking user feedback; rely on browser permission UI
+      console.warn('Face gestures unavailable (camera or model load failed).')
+    }
+  } else {
+    stopFace()
+  }
 })
 initFaceInput(chkFace, { onMove: () => {} })
 chkContrast.addEventListener('change', () => updateSettings({ highContrast: chkContrast.checked }))
