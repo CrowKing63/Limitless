@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 import { phaserConfig } from './game/config'
 import { applySettingsToDocument, emitSettingsChanged, loadSettings, saveSettings, type SettingsState } from './state/settings'
 import { addTokens, loadProgress, saveProgress, unlockNextStage } from './state/progress'
+import { addReward } from './state/rewards'
 import { initSpeech } from './input/speech'
 import { initFaceInput, start as startFace, stop as stopFace } from './input/face'
 import { startScan } from './ui/scan'
@@ -42,6 +43,9 @@ const btnTutSkip = document.getElementById('btn-tut-skip') as HTMLButtonElement
 const runoverOverlay = document.getElementById('runover-overlay') as HTMLElement
 const runoverSummary = document.getElementById('runover-summary') as HTMLElement
 const runoverReward = document.getElementById('runover-reward') as HTMLElement
+const stageRewards = document.getElementById('stage-rewards') as HTMLElement
+const btnRewardMagnet = document.getElementById('reward-magnet') as HTMLButtonElement
+const btnRewardBlast = document.getElementById('reward-blast') as HTMLButtonElement
 const btnNextStage = document.getElementById('btn-next-stage') as HTMLButtonElement
 const btnRetry = document.getElementById('btn-retry') as HTMLButtonElement
 const btnMenu = document.getElementById('btn-menu') as HTMLButtonElement
@@ -187,8 +191,16 @@ function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived:
   runoverOverlay.classList.add('visible')
   runoverOverlay.setAttribute('aria-hidden', 'false')
   const canUnlock = prog.tokens >= cost
-  btnNextStage.disabled = !canUnlock
+  btnNextStage.disabled = detail.reason === 'time' ? true : !canUnlock
   btnNextStage.textContent = canUnlock ? `Next Stage (cost ${cost})` : `Need ${cost - prog.tokens} more`
+  if (detail.reason === 'time') {
+    stageRewards.querySelectorAll('button').forEach(b => b.removeAttribute('aria-selected'))
+    stageRewards.setAttribute('aria-hidden', 'false')
+    stageRewards.classList.add('visible')
+  } else {
+    stageRewards.setAttribute('aria-hidden', 'true')
+    stageRewards.classList.remove('visible')
+  }
   if (settings.scanMode) startScan(runoverOverlay)
 }
 
@@ -201,6 +213,8 @@ function restartGame() {
   if (scene) scene.scene.restart()
   runoverOverlay.classList.remove('visible')
   runoverOverlay.setAttribute('aria-hidden', 'true')
+  stageRewards.setAttribute('aria-hidden', 'true')
+  stageRewards.classList.remove('visible')
 }
 
 btnNextStage?.addEventListener('click', () => {
@@ -216,3 +230,14 @@ btnMenu?.addEventListener('click', () => {
   startOverlay.classList.add('visible')
   if (settings.scanMode) stopStartScan = startScan(startOverlay)
 })
+
+function chooseReward(r: 'magnet' | 'blast') {
+  addReward(r)
+  btnNextStage.disabled = false
+  stageRewards.querySelectorAll('button').forEach(b => b.removeAttribute('aria-selected'))
+  const btn = stageRewards.querySelector(`[data-reward="${r}"]`)
+  if (btn) btn.setAttribute('aria-selected', 'true')
+}
+
+btnRewardMagnet?.addEventListener('click', () => chooseReward('magnet'))
+btnRewardBlast?.addEventListener('click', () => chooseReward('blast'))
