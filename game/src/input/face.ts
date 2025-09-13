@@ -27,13 +27,12 @@ async function ensureLibs() {
 async function initLandmarker() {
   await ensureLibs()
   const fileset = await FilesetResolver.forVisionTasks(
-    // CDN base pinned to a specific version to avoid breaking changes.
-    // Keep this in sync with package.json dependency version.
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm'
+    // CDN base pinned to the same RC version as package.json
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm'
   )
   landmarker = await FaceLandmarker.createFromOptions(fileset, {
     baseOptions: {
-      modelAssetPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm/face_landmarker.task',
+      modelAssetPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm/face_landmarker.task',
     },
     runningMode: 'VIDEO',
     numFaces: 1,
