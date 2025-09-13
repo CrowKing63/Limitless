@@ -18,9 +18,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: '/index.html',
+        // Use relative fallback to work under GitHub Pages subpaths
+        navigateFallback: 'index.html',
       },
     }),
   ],
 })
-
