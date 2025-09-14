@@ -1,6 +1,6 @@
 import './style.css'
 import Phaser from 'phaser'
-import { phaserConfig } from './game/config'
+import { phaserConfig, GAME_WIDTH, GAME_HEIGHT } from './game/config'
 import { applySettingsToDocument, emitSettingsChanged, loadSettings, saveSettings, type SettingsState } from './state/settings'
 import { loadProgress, saveProgress } from './state/progress'
 import { clearRunState } from './state/run'
@@ -17,11 +17,17 @@ applySettingsToDocument(settings)
 const settingsOverlay = document.getElementById('settings-overlay')!
 const btnSettings = document.getElementById('btn-settings') as HTMLButtonElement | null
 const btnCloseSettings = document.getElementById('btn-close-settings') as HTMLButtonElement
+const btnAdv = document.getElementById('btn-adv') as HTMLButtonElement | null
 const btnPTT = document.getElementById('btn-ptt') as HTMLButtonElement | null
 const chkContrast = document.getElementById('chk-contrast') as HTMLInputElement
 const rngText = document.getElementById('rng-text') as HTMLInputElement
 const chkScan = document.getElementById('chk-scan') as HTMLInputElement
 const chkFace = document.getElementById('chk-face') as HTMLInputElement
+const chkShake = document.getElementById('chk-shake') as HTMLInputElement
+const rngTele = document.getElementById('rng-tele') as HTMLInputElement
+const chkTeleBold = document.getElementById('chk-telebold') as HTMLInputElement
+const selPalette = document.getElementById('sel-palette') as HTMLSelectElement
+const chkBulletBold = document.getElementById('chk-bulletbold') as HTMLInputElement
 const rngGain = document.getElementById('rng-gain') as HTMLInputElement
 const rngMaxDist = document.getElementById('rng-maxdist') as HTMLInputElement
 const rngCurve = document.getElementById('rng-curve') as HTMLInputElement
@@ -71,6 +77,11 @@ rngCurve.value = String(Math.round(settings.followCurve * 100))
 rngTilt.value = String(Math.round(settings.faceTiltSensitivity * 1000))
 rngNudge.value = String(settings.faceNudgeDistance)
 rngRepeat.value = String(settings.faceRepeatMs)
+if (rngTele) rngTele.value = String(settings.telegraphMs)
+if (chkTeleBold) chkTeleBold.checked = settings.telegraphBold
+if (selPalette) selPalette.value = settings.palette
+if (chkBulletBold) chkBulletBold.checked = settings.projectileBold
+if (chkShake) chkShake.checked = settings.screenShake
 diffRadios.forEach(r => (r.checked = r.value === settings.difficulty))
 
 function updateSettings(partial: Partial<SettingsState>) {
@@ -84,6 +95,12 @@ function updateSettings(partial: Partial<SettingsState>) {
 
 btnSettings?.addEventListener('click', () => openSettings())
 btnCloseSettings.addEventListener('click', () => closeSettings())
+btnAdv?.addEventListener('click', () => {
+  const card = document.getElementById('settings-overlay')!
+  const on = !card.classList.contains('advanced')
+  card.classList.toggle('advanced', on)
+  if (btnAdv) { btnAdv.textContent = on ? 'Hide Advanced ▴' : 'Show Advanced ▾'; btnAdv.setAttribute('aria-pressed', on ? 'true' : 'false') }
+})
 if (btnPTT) initSpeech(btnPTT)
 chkFace.addEventListener('change', async () => {
   if (chkFace.checked) {
@@ -113,12 +130,25 @@ rngCurve.addEventListener('input', () => updateSettings({ followCurve: Number(rn
 rngTilt.addEventListener('input', () => updateSettings({ faceTiltSensitivity: Number(rngTilt.value) / 1000 }))
 rngNudge.addEventListener('input', () => updateSettings({ faceNudgeDistance: Number(rngNudge.value) }))
 rngRepeat.addEventListener('input', () => updateSettings({ faceRepeatMs: Number(rngRepeat.value) }))
+rngTele?.addEventListener('input', () => updateSettings({ telegraphMs: Number(rngTele.value) }))
+selPalette?.addEventListener('change', () => updateSettings({ palette: selPalette.value as any }))
+chkBulletBold?.addEventListener('change', () => updateSettings({ projectileBold: chkBulletBold.checked }))
+chkShake?.addEventListener('change', () => updateSettings({ screenShake: chkShake.checked }))
+chkTeleBold?.addEventListener('change', () => updateSettings({ telegraphBold: chkTeleBold.checked }))
 radios.forEach(r => r.addEventListener('change', () => updateSettings({ movementMode: (r.value as any) })))
 diffRadios.forEach(r => r.addEventListener('change', () => updateSettings({ difficulty: (r.value as any) })))
 
 let game: Phaser.Game | null = null
 // Create game immediately (no initial popup)
 game = new Phaser.Game(phaserConfig)
+// Integer zoom manager (keeps crisp pixels at 1x,2x,3x ...)
+function setIntZoom() {
+  if (!game) return
+  const z = Math.max(1, Math.floor(Math.min(window.innerWidth / GAME_WIDTH, window.innerHeight / GAME_HEIGHT)))
+  ;(game.scale as any).setZoom?.(z)
+}
+setIntZoom()
+window.addEventListener('resize', setIntZoom)
 // Ensure stage defaults
 const progStart = loadProgress()
 if (!progStart.currentStage || progStart.currentStage < 1) {

@@ -14,6 +14,9 @@
     <div id="settings-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" aria-hidden="true">
       <div class="overlay-card">
         <h2 id="settings-title">Settings</h2>
+        <div class="row end" id="settings-toolbar">
+          <button id="btn-adv" class="secondary" aria-pressed="false">Show Advanced ▾</button>
+        </div>
         <section>
           <h3>Movement Mode</h3>
           <div role="radiogroup" aria-label="Movement mode">
@@ -58,32 +61,49 @@
             <input id="rng-text" type="range" min="90" max="150" value="100" />
           </div>
           <p class="note">텍스트 크기: 인터페이스 글자 크기를 키웁니다.</p>
-          <label><input type="checkbox" id="chk-scan" /> One‑switch scan mode (beta)</label>
-          <p class="note">스캔 모드: 선택지가 자동으로 순환하며 스페이스/엔터로 선택합니다.</p>
-          <div class="row">
+          <label data-advanced><input type="checkbox" id="chk-scan" /> One‑switch scan mode (beta)</label>
+          <p class="note" data-advanced>스캔 모드: 선택지가 자동으로 순환하며 스페이스/엔터로 선택합니다.</p>
+          <div class="row" data-advanced>
             <label for="rng-scan">Scan speed</label>
             <input id="rng-scan" type="range" min="600" max="2400" step="100" value="1200" />
           </div>
-          <label><input type="checkbox" id="chk-dwell" /> Dwell to activate</label>
-          <p class="note">응시/머무름 활성화: 커서를 올려두면 지정 시간 후 자동 클릭합니다.</p>
-          <div class="row">
+          <label data-advanced><input type="checkbox" id="chk-dwell" /> Dwell to activate</label>
+          <p class="note" data-advanced>응시/머무름 활성화: 커서를 올려두면 지정 시간 후 자동 클릭합니다.</p>
+          <div class="row" data-advanced>
             <label for="rng-dwell">Dwell time</label>
             <input id="rng-dwell" type="range" min="500" max="2000" step="100" value="900" />
           </div>
-          <label><input type="checkbox" id="chk-face" /> Face gestures (beta)</label>
-          <p class="note">얼굴 제스처: 좌/우/상/하 기울기만으로 1회성 ‘눌러 이동’을 실행합니다.</p>
-          <div class="row">
+          <label data-advanced><input type="checkbox" id="chk-face" /> Face gestures (beta)</label>
+          <p class="note" data-advanced>얼굴 제스처: 좌/우/상/하 기울기만으로 1회성 ‘눌러 이동’을 실행합니다.</p>
+          <div class="row" data-advanced>
             <label for="rng-tilt">Tilt sensitivity</label>
             <input id="rng-tilt" type="range" min="40" max="100" step="2" value="60" />
           </div>
-          <div class="row">
+          <div class="row" data-advanced>
             <label for="rng-nudge">Nudge distance</label>
             <input id="rng-nudge" type="range" min="80" max="320" step="10" value="160" />
           </div>
-          <div class="row">
+          <div class="row" data-advanced>
             <label for="rng-repeat">Nudge repeat</label>
             <input id="rng-repeat" type="range" min="200" max="600" step="20" value="300" />
           </div>
+          <h4 data-advanced>Telegraph</h4>
+          <div class="row" data-advanced>
+            <label for="rng-tele">Telegraph duration</label>
+            <input id="rng-tele" type="range" min="80" max="400" step="20" value="200" />
+          </div>
+          <label data-advanced><input type="checkbox" id="chk-telebold" /> Extra contrast telegraph</label>
+          <div class="row" data-advanced><label><input type="checkbox" id="chk-shake" /> Screen shake (subtle)</label></div>
+          <h4 data-advanced>Visibility</h4>
+          <div class="row" data-advanced>
+            <label for="sel-palette">Palette</label>
+            <select id="sel-palette">
+              <option value="default">Default</option>
+              <option value="high">High‑visibility</option>
+              <option value="mono">Grayscale</option>
+            </select>
+          </div>
+          <label data-advanced><input type="checkbox" id="chk-bulletbold" /> High‑visibility projectiles</label>
         </section>
         <section>
           <h3>Difficulty</h3>

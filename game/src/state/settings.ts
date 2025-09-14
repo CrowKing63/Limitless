@@ -17,6 +17,11 @@ export interface SettingsState {
   faceNudgeDistance: number // px
   faceRepeatMs: number // ms
   difficulty: 'relaxed' | 'standard' | 'intense'
+  telegraphMs: number // base telegraph duration
+  telegraphBold: boolean // higher contrast shapes
+  screenShake: boolean // subtle camera shake on hits/FX
+  palette: 'default' | 'high' | 'mono'
+  projectileBold: boolean
 }
 
 const KEY = 'limitless:settings:v1'
@@ -38,6 +43,11 @@ export const defaultSettings: SettingsState = {
   faceNudgeDistance: 160,
   faceRepeatMs: 300,
   difficulty: 'standard',
+  telegraphMs: 200,
+  telegraphBold: true,
+  screenShake: false,
+  palette: 'default',
+  projectileBold: false,
 }
 
 export function loadSettings(): SettingsState {

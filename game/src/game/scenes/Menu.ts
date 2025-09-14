@@ -5,6 +5,8 @@ export class MenuScene extends Phaser.Scene {
   constructor() { super('menu') }
 
   create() {
+    // Pixel-perfect camera
+    this.cameras.main.setRoundPixels(true)
     // Notify UI we're in menu (hide topbar controls)
     window.dispatchEvent(new CustomEvent('ui:inMenu'))
 
@@ -14,7 +16,12 @@ export class MenuScene extends Phaser.Scene {
     // Central art: wheelchair vs stairs
     const cx = GAME_WIDTH / 2
     const cy = GAME_HEIGHT / 2 - 20
-    const player = this.add.image(cx - 80, cy, 'player').setScale(2)
+    const player = (this.textures.exists('player_sheet') ? this.add.sprite(cx - 80, cy, 'player_sheet', 0) : this.add.image(cx - 80, cy, 'player')) as any
+    player.setScale(2)
+    if ((player as any).play) {
+      if (this.anims.exists('player-right')) (player as any).play('player-right')
+      else if (this.anims.exists('player-walk')) (player as any).play('player-walk')
+    }
     const stairs = this.add.image(cx + 100, cy + 6, 'enemy').setScale(2)
     this.tweens.add({ targets: [player, stairs], angle: 2, yoyo: true, duration: 1200, repeat: -1, ease: 'Sine.inOut' })
 
