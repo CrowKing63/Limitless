@@ -18,6 +18,28 @@ export class MenuScene extends Phaser.Scene {
     const stairs = this.add.image(cx + 100, cy + 6, 'enemy').setScale(2)
     this.tweens.add({ targets: [player, stairs], angle: 2, yoyo: true, duration: 1200, repeat: -1, ease: 'Sine.inOut' })
 
+    // Dynamic duel: fire bullets back and forth
+    const fire = (from: Phaser.GameObjects.Image, to: Phaser.GameObjects.Image, freq = 800) => {
+      this.time.addEvent({ delay: freq, loop: true, callback: () => {
+        const ang = Math.atan2(to.y - from.y, to.x - from.x)
+        const b = this.add.image(from.x, from.y, 'bullet').setRotation(ang)
+        const dist = Phaser.Math.Distance.Between(from.x, from.y, to.x, to.y)
+        this.tweens.add({
+          targets: b,
+          x: to.x,
+          y: to.y,
+          duration: Math.max(200, Math.min(700, dist * 3)),
+          onComplete: () => {
+            const flash = this.add.circle(to.x, to.y, 6, 0xffffff, 0.4)
+            this.tweens.add({ targets: flash, radius: 26, alpha: 0, duration: 220, onComplete: () => flash.destroy() })
+            b.destroy()
+          }
+        })
+      }})
+    }
+    fire(player, stairs, 700)
+    fire(stairs, player, 900)
+
     // Title & guide
     this.add.text(cx, cy - 130, 'Limitless Survivor', { color: '#e7e7ef', fontSize: '28px' }).setOrigin(0.5)
     const guide = [

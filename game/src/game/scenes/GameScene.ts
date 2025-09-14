@@ -213,21 +213,10 @@ export class GameScene extends Phaser.Scene {
     this.buildHUD = this.add.text(GAME_WIDTH - 8, 8, '', { color: '#b9b9c9', fontSize: '12px', align: 'right' }).setOrigin(1, 0).setScrollFactor(0)
     this.updateHUD2()
     if (this.isPractice) {
-      this.showHint('Practice: open Settings to test inputs. Press Start Run when ready.')
-      // Let outside UI know we are in practice (enable Settings button)
+      this.showHint('Practice: adjust left panel. Press Start Run in the sidebar when ready.')
       window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: true } }))
-      const btn = this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 12, 'Start Run ▶', { color: '#0d0f1c', fontSize: '16px', backgroundColor: '#6ea8fe' })
-        .setOrigin(1, 1).setPadding(8, 6, 8, 6).setScrollFactor(0).setInteractive({ useHandCursor: true })
-      btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#8fbaff' }))
-      btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#6ea8fe' }))
-      btn.on('pointerdown', () => {
-        // Ensure any overlays are hidden and game is unpaused before transition
-        this.physics.world.isPaused = false
-        window.dispatchEvent(new CustomEvent('pause:resume'))
-        window.dispatchEvent(new CustomEvent('pause:levelup_close'))
-        window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
-        this.scene.restart({ practice: false })
-      })
+      // Re-open settings after scene starts to ensure visibility on Safari
+      this.time.delayedCall(50, () => window.dispatchEvent(new CustomEvent('ui:openSettings')))
     } else {
       this.showHint('Click to move. Press Esc for Pause.')
       window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))

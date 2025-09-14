@@ -50,6 +50,8 @@ const btnMenu = document.getElementById('btn-menu') as HTMLButtonElement
 const pauseOverlay = document.getElementById('pause-overlay') as HTMLElement
 const btnResume = document.getElementById('btn-resume') as HTMLButtonElement
 const btnQuit = document.getElementById('btn-quit') as HTMLButtonElement
+// Practice sidebar Start Run button
+const btnStartRun = document.getElementById('btn-start-run') as HTMLButtonElement | null
 
 // Movement mode radios
 const radios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="moveMode"]'))
@@ -264,3 +266,17 @@ window.addEventListener('ui:practiceMode', (e: any) => {
 
 // Allow scenes to open Settings (practice startup)
 window.addEventListener('ui:openSettings', () => openSettings())
+
+// Sidebar Start Run → switch to real run
+btnStartRun?.addEventListener('click', () => {
+  document.body.classList.toggle('practice-mode', false)
+  settingsOverlay.classList.remove('visible')
+  settingsOverlay.setAttribute('aria-hidden', 'true')
+  window.dispatchEvent(new CustomEvent('pause:resume'))
+  const g: any = game
+  if (g) {
+    const scene = g.scene.getScene('game')
+    if (scene) scene.scene.restart({ practice: false })
+    else g.scene.start('game', { practice: false })
+  }
+})
