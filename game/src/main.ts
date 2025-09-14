@@ -49,6 +49,10 @@ const btnRewardBlast = document.getElementById('reward-blast') as HTMLButtonElem
 const btnNextStage = document.getElementById('btn-next-stage') as HTMLButtonElement
 const btnRetry = document.getElementById('btn-retry') as HTMLButtonElement
 const btnMenu = document.getElementById('btn-menu') as HTMLButtonElement
+// Pause overlay elements
+const pauseOverlay = document.getElementById('pause-overlay') as HTMLElement
+const btnResume = document.getElementById('btn-resume') as HTMLButtonElement
+const btnQuit = document.getElementById('btn-quit') as HTMLButtonElement
 
 // Movement mode radios
 const radios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="moveMode"]'))
@@ -177,7 +181,7 @@ window.addEventListener('face:dir', (e: any) => {
 window.addEventListener('voice:command', (e: Event) => {
   const d = (e as CustomEvent).detail as any
   if (!d || d.type !== 'ui') return
-  if (d.action === 'open_settings') openSettings()
+  if (d.action === 'open_settings') { if (btnSettings.style.display !== 'none') openSettings() }
   else if (d.action === 'close_settings') closeSettings()
   else if (d.action === 'toggle_contrast') updateSettings({ highContrast: !settings.highContrast })
   else if (d.action === 'toggle_scan') updateSettings({ scanMode: !settings.scanMode })
@@ -236,8 +240,8 @@ btnRetry?.addEventListener('click', () => restartGame())
 btnMenu?.addEventListener('click', () => {
   runoverOverlay.classList.remove('visible')
   runoverOverlay.setAttribute('aria-hidden', 'true')
-  startOverlay.classList.add('visible')
-  if (settings.scanMode) stopStartScan = startScan(startOverlay)
+  const g: any = game
+  if (g) g.scene.start('menu')
 })
 
 function chooseReward(r: 'magnet' | 'blast') {
@@ -250,3 +254,42 @@ function chooseReward(r: 'magnet' | 'blast') {
 
 btnRewardMagnet?.addEventListener('click', () => chooseReward('magnet'))
 btnRewardBlast?.addEventListener('click', () => chooseReward('blast'))
+
+// Pause overlay wiring
+window.addEventListener('pause:open', () => {
+  pauseOverlay.classList.add('visible')
+  pauseOverlay.setAttribute('aria-hidden', 'false')
+  if (loadSettings().scanMode) startScan(pauseOverlay)
+})
+btnResume?.addEventListener('click', () => {
+  pauseOverlay.classList.remove('visible')
+  pauseOverlay.setAttribute('aria-hidden', 'true')
+  window.dispatchEvent(new CustomEvent('pause:resume'))
+})
+btnQuit?.addEventListener('click', () => {
+  pauseOverlay.classList.remove('visible')
+  pauseOverlay.setAttribute('aria-hidden', 'true')
+  const g: any = game
+  if (g) g.scene.start('menu')
+  settingsOverlay.classList.remove('visible')
+  settingsOverlay.setAttribute('aria-hidden', 'true')
+})
+
+// Level Up pause signals (GameScene also handles pause/resume)
+window.addEventListener('pause:levelup_open', () => {})
+window.addEventListener('pause:levelup_close', () => {})
+
+// Menu scene notifications
+window.addEventListener('ui:inMenu', () => {
+  document.getElementById('topbar')?.setAttribute('aria-hidden', 'true')
+})
+
+// Toggle Settings availability only in practice
+window.addEventListener('ui:practiceMode', (e: any) => {
+  const enabled = !!e.detail?.enabled
+  document.getElementById('topbar')?.setAttribute('aria-hidden', enabled ? 'false' : 'true')
+  btnSettings.style.display = enabled ? '' : 'none'
+})
+
+// Allow scenes to open Settings (practice startup)
+window.addEventListener('ui:openSettings', () => openSettings())

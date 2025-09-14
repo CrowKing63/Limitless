@@ -35,6 +35,8 @@ function choose(i: number) {
   levelupOverlay.setAttribute('aria-hidden', 'true')
   const r = resolver
   cleanup()
+  // Notify to resume immediately; also covered by transitionend
+  window.dispatchEvent(new CustomEvent('pause:levelup_close'))
   r(i)
 }
 
@@ -58,6 +60,9 @@ export function openLevelUp(choices: string[]): Promise<number> {
    // Start scan mode if enabled
   if (loadSettings().scanMode) stopScan = startScan(levelupOverlay)
 
+  // Signal game scene to fully pause physics/timers
+  window.dispatchEvent(new CustomEvent('pause:levelup_open'))
+
   return new Promise<number>(resolve => {
     resolver = resolve
   })
@@ -73,3 +78,10 @@ export function voiceSelect(n: number): boolean {
   }
   return false
 }
+
+// When the overlay is hidden via click/selection, let the scene resume.
+levelupOverlay?.addEventListener('transitionend', () => {
+  if (!levelupOverlay.classList.contains('visible')) {
+    window.dispatchEvent(new CustomEvent('pause:levelup_close'))
+  }
+})

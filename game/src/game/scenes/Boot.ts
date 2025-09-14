@@ -32,6 +32,5 @@ export class Boot extends Phaser.Scene {
     g.generateTexture('xp', 12, 12)
     g.destroy()
   }
-  create() { this.scene.start('game') }
+  create() { this.scene.start('menu') }
 }
-

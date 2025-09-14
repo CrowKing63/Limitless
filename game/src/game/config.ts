@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { Boot } from './scenes/Boot'
 import { GameScene } from './scenes/GameScene'
+import { MenuScene } from './scenes/Menu'
 
 export const GAME_WIDTH = 960
 export const GAME_HEIGHT = 540
@@ -20,5 +21,5 @@ export const phaserConfig: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [Boot, GameScene],
+  scene: [Boot, MenuScene, GameScene],
 }

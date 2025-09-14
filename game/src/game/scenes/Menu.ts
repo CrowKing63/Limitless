@@ -1,0 +1,55 @@
+import Phaser from 'phaser'
+import { GAME_WIDTH, GAME_HEIGHT } from '../config'
+
+export class MenuScene extends Phaser.Scene {
+  constructor() { super('menu') }
+
+  create() {
+    // Notify UI we're in menu (hide topbar controls)
+    window.dispatchEvent(new CustomEvent('ui:inMenu'))
+
+    // Background
+    this.cameras.main.setBackgroundColor('#0d0f1c')
+
+    // Central art: wheelchair vs stairs
+    const cx = GAME_WIDTH / 2
+    const cy = GAME_HEIGHT / 2 - 20
+    const player = this.add.image(cx - 80, cy, 'player').setScale(2)
+    const stairs = this.add.image(cx + 100, cy + 6, 'enemy').setScale(2)
+    this.tweens.add({ targets: [player, stairs], angle: 2, yoyo: true, duration: 1200, repeat: -1, ease: 'Sine.inOut' })
+
+    // Title
+    this.add.text(cx, cy - 120, 'Limitless Survivor', { color: '#e7e7ef', fontSize: '28px' }).setOrigin(0.5)
+    this.add.text(cx, cy - 90, 'Practice accessible inputs, then start a real run.', { color: '#b9b9c9', fontSize: '16px' }).setOrigin(0.5)
+
+    // Menu buttons
+    const beep = (freq = 880) => {
+      const ctx = (this.sound as any).context as AudioContext | undefined
+      if (!ctx) return
+      const osc = ctx.createOscillator(); const gain = ctx.createGain()
+      osc.frequency.value = freq; gain.gain.setValueAtTime(0.1, ctx.currentTime)
+      osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.08)
+    }
+
+    const makeBtn = (y: number, label: string, cb: () => void) => {
+      const btn = this.add.text(cx, y, label, { color: '#0d0f1c', fontSize: '20px', backgroundColor: '#6ea8fe' })
+        .setOrigin(0.5).setPadding(10, 8, 10, 8).setInteractive({ useHandCursor: true })
+      btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#8fbaff' }))
+      btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#6ea8fe' }))
+      btn.on('pointerdown', () => { beep(900); cb() })
+      return btn
+    }
+
+    makeBtn(cy + 60, 'Practice Mode', () => {
+      // Open settings panel on the side when entering practice
+      window.dispatchEvent(new CustomEvent('ui:openSettings'))
+      window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: true } }))
+      this.scene.start('game', { practice: true })
+    })
+
+    makeBtn(cy + 110, 'Start Game', () => {
+      window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
+      this.scene.start('game', { practice: false })
+    })
+  }
+}

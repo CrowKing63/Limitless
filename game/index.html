@@ -150,6 +150,17 @@
       </div>
     </div>
 
+    <!-- Pause Overlay -->
+    <div id="pause-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title" aria-hidden="true">
+      <div class="overlay-card">
+        <h2 id="pause-title">Paused</h2>
+        <div class="row">
+          <button id="btn-resume" class="primary" data-scan>Resume</button>
+          <button id="btn-quit" class="secondary" data-scan>Quit to Menu</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

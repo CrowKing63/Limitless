@@ -43,8 +43,14 @@ export class GameScene extends Phaser.Scene {
   private hasMagnet = false
   private magnetRadius = 0
   private hasBlast = false
+  private isPractice = false
+  private lastAim = 0
 
   constructor() { super('game') }
+
+  init(data: any) {
+    this.isPractice = !!data?.practice
+  }
 
   create() {
     // Reset per-run state to ensure clean restart between stages
@@ -68,6 +74,8 @@ export class GameScene extends Phaser.Scene {
     this.hasBlast = false
     if (this.spawnEvt) { this.spawnEvt.remove(false); this.spawnEvt = undefined }
     if (this.attackEvt) { this.attackEvt.remove(false); this.attackEvt = undefined }
+    this.physics.world.isPaused = false
+    this.input.enabled = true
 
     // Stage / meta
     const prog = loadProgress()
@@ -81,8 +89,12 @@ export class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true)
 
     // Input
+    // Clear any residual input listeners from prior runs
+    this.input.removeAllListeners()
     this.inputLayer = new VirtualInput(this)
     this.inputLayer.attach()
+    // Ensure movement mode matches persisted settings
+    this.inputLayer.setMode((window as any)._settings?.movementMode || 'click')
     this.cursors = this.input.keyboard!.createCursorKeys()
 
     // Voice commands
@@ -148,13 +160,15 @@ export class GameScene extends Phaser.Scene {
       this.showHint('게임 시작!')
     })
 
-    // Short run timer
-    this.runTimerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => {
-      if (this.runOver) return
-      this.runSecLeft -= 1
-      if (this.runSecLeft <= 0) this.endRun('time')
-      this.updateHUD2()
-    }})
+    // Short run timer (disabled in practice)
+    if (!this.isPractice) {
+      this.runTimerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => {
+        if (this.runOver) return
+        this.runSecLeft -= 1
+        if (this.runSecLeft <= 0) this.endRun('time')
+        this.updateHUD2()
+      }})
+    }
 
     // Auto-attack
     this.scheduleAttack()
@@ -174,10 +188,29 @@ export class GameScene extends Phaser.Scene {
       this.playSfx(880)
     })
 
+    // Pause key
+    this.input.keyboard!.on('keydown-ESC', () => this.openPause())
+    this.input.keyboard!.on('keydown-P', () => this.openPause())
+
     // UI
     this.uiText = this.add.text(8, 8, '', { color: '#e7e7ef', fontSize: '14px' }).setScrollFactor(0)
     this.updateHUD2()
-    this.showHint('Click to move, or open Settings → Pointer‑Follow')
+    if (this.isPractice) {
+      this.showHint('Practice: open Settings to test inputs. Press Start Run when ready.')
+      // Let outside UI know we are in practice (enable Settings button)
+      window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: true } }))
+      const btn = this.add.text(GAME_WIDTH - 12, GAME_HEIGHT - 12, 'Start Run ▶', { color: '#0d0f1c', fontSize: '16px', backgroundColor: '#6ea8fe' })
+        .setOrigin(1, 1).setPadding(8, 6, 8, 6).setScrollFactor(0).setInteractive({ useHandCursor: true })
+      btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#8fbaff' }))
+      btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#6ea8fe' }))
+      btn.on('pointerdown', () => {
+        window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
+        this.scene.start('game', { practice: false })
+      })
+    } else {
+      this.showHint('Click to move. Press Esc for Pause.')
+      window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
+    }
   }
 
   private spawnEnemy() {
@@ -220,8 +253,15 @@ export class GameScene extends Phaser.Scene {
   private doAttack() {
     if (this.inLevelUp) return
     this.playSfx(440)
+    // Auto-aim: pick nearest enemy; if none, use lastAim
+    const target = this.findNearestEnemy()
+    if (target) {
+      this.lastAim = Math.atan2(target.y - this.player.y, target.x - this.player.x)
+    }
+    const spread = Phaser.Math.DegToRad(14)
     for (let i = 0; i < this.projCount; i++) {
-      const angle = this.player.rotation + (i - (this.projCount - 1) / 2) * Phaser.Math.DegToRad(10)
+      const offset = (i - (this.projCount - 1) / 2) * spread
+      const angle = this.lastAim + offset
       let b = this.projectiles.getFirstDead(false) as Phaser.Types.Physics.Arcade.ImageWithDynamicBody | null
       if (!b) {
         b = this.projectiles.create(this.player.x, this.player.y, 'bullet') as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
@@ -233,6 +273,20 @@ export class GameScene extends Phaser.Scene {
       this.physics.velocityFromRotation(angle, this.projSpeed, b.body.velocity)
       this.time.delayedCall(1500, () => b!.disableBody(true, true))
     }
+  }
+
+  private findNearestEnemy(): { x: number, y: number } | null {
+    const list = this.enemies.getChildren() as Enemy[]
+    let best: Enemy | null = null
+    let bestD2 = Infinity
+    for (const e of list) {
+      if (!e.active) continue
+      const dx = e.x - this.player.x
+      const dy = e.y - this.player.y
+      const d2 = dx * dx + dy * dy
+      if (d2 < bestD2) { bestD2 = d2; best = e }
+    }
+    return best ? { x: best.x, y: best.y } : null
   }
 
   private radialBlast() {
@@ -281,6 +335,9 @@ export class GameScene extends Phaser.Scene {
   private async triggerLevelUp() {
     this.inLevelUp = true
     if (this.attackEvt) this.attackEvt.paused = true
+    if (this.spawnEvt) this.spawnEvt.paused = true
+    if (this.runTimerEvt) this.runTimerEvt.paused = true
+    this.physics.world.isPaused = true
     // Present 3 upgrades
     const pool = [
       '+20% Fire Rate',
@@ -306,6 +363,9 @@ export class GameScene extends Phaser.Scene {
     }
     this.inLevelUp = false
     if (this.attackEvt) this.attackEvt.paused = false
+    if (this.spawnEvt) this.spawnEvt.paused = false
+    if (this.runTimerEvt) this.runTimerEvt.paused = false
+    this.physics.world.isPaused = false
     this.updateHUD2()
   }
 
@@ -393,6 +453,7 @@ export class GameScene extends Phaser.Scene {
   private onHitEnemy(_e: Enemy) {
     const now = this.time.now
     if (now < this.invulnUntil || this.runOver || this.inLevelUp) return
+    if (this.isPractice) return
     this.invulnUntil = now + 700
     this.hp = Math.max(0, this.hp - 1)
     this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 })
@@ -425,10 +486,12 @@ export class GameScene extends Phaser.Scene {
 
   private endRun(reason: 'time' | 'defeat') {
     if (this.runOver) return
+    if (this.isPractice) return // never end in practice
     this.runOver = true
     if (this.spawnEvt) this.spawnEvt.paused = true
     if (this.attackEvt) this.attackEvt.paused = true
     if (this.runTimerEvt) this.runTimerEvt.paused = true
+    this.physics.world.isPaused = true
     const survived = this.runSecInit - Math.max(0, this.runSecLeft)
     const tokens = Math.max(1, Math.floor(this.kills / 12) + Math.floor(this.level / 2) + (reason === 'time' ? 2 : 0))
     const detail = { reason, stage: this.stage, survived, level: this.level, kills: this.kills, tokens }
@@ -443,6 +506,24 @@ export class GameScene extends Phaser.Scene {
 
   private updateHUD2() {
     const timer = this.formatTime(Math.max(0, this.runSecLeft))
-    this.uiText.setText(`Stage ${this.stage}  |  Time ${timer}\nHP ${this.hp}  Lv ${this.level}  XP ${this.xp}/${this.xpToNext}  Kills ${this.kills}`)
+    const practice = this.isPractice ? ' PRACTICE' : ''
+    this.uiText.setText(`Stage ${this.stage}${practice}  |  Time ${timer}\nHP ${this.hp}  Lv ${this.level}  XP ${this.xp}/${this.xpToNext}  Kills ${this.kills}`)
+  }
+
+  private openPause() {
+    if (this.inLevelUp || this.runOver) return
+    this.physics.world.isPaused = true
+    if (this.spawnEvt) this.spawnEvt.paused = true
+    if (this.attackEvt) this.attackEvt.paused = true
+    if (this.runTimerEvt) this.runTimerEvt.paused = true
+    window.dispatchEvent(new CustomEvent('pause:open'))
+    const onResume = () => {
+      window.removeEventListener('pause:resume', onResume)
+      this.physics.world.isPaused = false
+      if (this.spawnEvt) this.spawnEvt.paused = false
+      if (this.attackEvt) this.attackEvt.paused = false
+      if (this.runTimerEvt) this.runTimerEvt.paused = false
+    }
+    window.addEventListener('pause:resume', onResume)
   }
 }
