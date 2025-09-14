@@ -219,13 +219,7 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(50, () => window.dispatchEvent(new CustomEvent('ui:openSettings')))
       const onStart = () => {
         window.removeEventListener('ui:start_run', onStart as any)
-        // Ensure clean transition: unpause everything then restart scene as real run
-        this.physics.world.isPaused = false
-        if (this.spawnEvt) this.spawnEvt.paused = false
-        if (this.attackEvt) this.attackEvt.paused = false
-        if (this.runTimerEvt) this.runTimerEvt.paused = false
-        window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
-        this.scene.restart({ practice: false })
+        this.startRealRunNow()
       }
       window.addEventListener('ui:start_run', onStart as any)
       this.events.once('shutdown', () => window.removeEventListener('ui:start_run', onStart as any))
@@ -627,5 +621,41 @@ export class GameScene extends Phaser.Scene {
     if (this.hasMagnet) lines.push(`Magnet: r=${Math.round(this.magnetRadius)} (${Math.max(1, this.magnetLv)})`)
     if (this.hasBlast) lines.push(`Blast: r=${Math.round(this.attackRadius)} (${Math.max(1, this.blastLv)})`)
     this.buildHUD.setText(lines.join('\n'))
+  }
+
+  // Transition from practice → real run without restarting the scene
+  private startRealRunNow() {
+    if (!this.isPractice) return
+    this.isPractice = false
+    // Hide practice UI
+    window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
+    // Unpause everything
+    this.physics.world.isPaused = false
+    if (this.spawnEvt) this.spawnEvt.paused = false
+    if (this.attackEvt) this.attackEvt.paused = false
+    // Start run timer if not created yet
+    if (!this.runTimerEvt) {
+      this.runTimerEvt = this.time.addEvent({ delay: 1000, loop: true, callback: () => {
+        if (this.runOver) return
+        this.runSecLeft -= 1
+        if (this.runSecLeft <= 0) this.endRun('time')
+        this.updateHUD2()
+      } })
+    }
+    // Reset timer to full for a fresh run
+    this.runSecLeft = this.runSecInit
+    // Re-apply any stage rewards if needed
+    const rewards = loadRewards()
+    if (rewards.includes('magnet') && !this.hasMagnet) { this.hasMagnet = true; this.magnetRadius = 100 }
+    if (rewards.includes('blast') && !this.hasBlast) {
+      this.hasBlast = true
+      this.time.addEvent({ delay: 5000, loop: true, callback: () => this.radialBlast() })
+    }
+    // Clean field to avoid leftover practice clutter
+    this.clearEnemies()
+    for (let i = 0; i < 6; i++) this.spawnEnemy()
+    this.showHint('Run started! Survive the timer.')
+    this.updateHUD2()
+    this.updateBuildHUD()
   }
 }
