@@ -47,6 +47,28 @@ export class GameScene extends Phaser.Scene {
   constructor() { super('game') }
 
   create() {
+    // Reset per-run state to ensure clean restart between stages
+    this.runOver = false
+    this.inLevelUp = false
+    this.kills = 0
+    this.level = 1
+    this.xp = 0
+    this.xpToNext = 5
+    this.hp = 3
+    this.invulnUntil = 0
+    this.practiceActive = false
+    // Base stats
+    this.speed = 160
+    this.attackRadius = 100
+    this.attackCooldown = 800
+    this.projSpeed = 300
+    this.projCount = 1
+    this.hasMagnet = false
+    this.magnetRadius = 0
+    this.hasBlast = false
+    if (this.spawnEvt) { this.spawnEvt.remove(false); this.spawnEvt = undefined }
+    if (this.attackEvt) { this.attackEvt.remove(false); this.attackEvt = undefined }
+
     // Stage / meta
     const prog = loadProgress()
     this.stage = Math.max(1, (prog as any)?.currentStage || (prog as any)?.highestUnlocked || 1)
@@ -89,6 +111,7 @@ export class GameScene extends Phaser.Scene {
       const o = orb as Phaser.Types.Physics.Arcade.ImageWithDynamicBody & { value?: number }
       this.xp += o.getData('value') ?? 1
       o.disableBody(true, true)
+      this.playSfx(660)
       this.checkLevelUp()
       this.updateHUD2()
     })
@@ -215,6 +238,7 @@ export class GameScene extends Phaser.Scene {
   private radialBlast() {
     const circle = this.add.circle(this.player.x, this.player.y, 6, 0x6ea8fe, 0.18)
     this.tweens.add({ targets: circle, radius: this.attackRadius * 1.4, alpha: 0, duration: 200, ease: 'Quad.easeOut', onComplete: () => circle.destroy() })
+    this.playSfx(520)
     const list = this.enemies.getChildren() as Phaser.GameObjects.Image[]
     for (const e of list) {
       const dx = e.x - this.player.x
@@ -372,6 +396,7 @@ export class GameScene extends Phaser.Scene {
     this.invulnUntil = now + 700
     this.hp = Math.max(0, this.hp - 1)
     this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 })
+    this.playSfx(180)
     if (this.hp <= 0) this.endRun('defeat')
     this.updateHUD2()
   }
