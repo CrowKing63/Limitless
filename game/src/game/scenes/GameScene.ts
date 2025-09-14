@@ -4,6 +4,7 @@ import { VirtualInput } from '../../input/VirtualInput'
 import { openLevelUp } from '../../ui/overlays'
 import { loadProgress } from '../../state/progress'
 import { loadRewards } from '../../state/rewards'
+import { clearRunState, loadRunState, saveRunState, type RunBuild } from '../../state/run'
 
 type Enemy = Phaser.Types.Physics.Arcade.ImageWithDynamicBody
 
@@ -45,6 +46,13 @@ export class GameScene extends Phaser.Scene {
   private hasBlast = false
   private isPractice = false
   private lastAim = 0
+  private fireRateLv = 0
+  private projLv = 0
+  private speedLv = 0
+  private magnetLv = 0
+  private blastLv = 0
+  private timeBar!: Phaser.GameObjects.Graphics
+  private buildHUD!: Phaser.GameObjects.Text
 
   constructor() { super('game') }
 
@@ -181,6 +189,10 @@ export class GameScene extends Phaser.Scene {
       this.time.addEvent({ delay: 5000, loop: true, callback: () => this.radialBlast() })
     }
 
+    // If continuing to next stage, apply previous run build
+    this.applyRunStateIfAny()
+    this.updateBuildHUD()
+
     // Click feedback
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       const fx = this.add.circle(p.worldX, p.worldY, 6, 0xffffff, 0.3)
@@ -194,6 +206,11 @@ export class GameScene extends Phaser.Scene {
 
     // UI
     this.uiText = this.add.text(8, 8, '', { color: '#e7e7ef', fontSize: '14px' }).setScrollFactor(0)
+    // Time progress bar (top center)
+    this.timeBar = this.add.graphics().setScrollFactor(0)
+    this.drawTimeBar()
+    // Build HUD (top-right)
+    this.buildHUD = this.add.text(GAME_WIDTH - 8, 8, '', { color: '#b9b9c9', fontSize: '12px', align: 'right' }).setOrigin(1, 0).setScrollFactor(0)
     this.updateHUD2()
     if (this.isPractice) {
       this.showHint('Practice: open Settings to test inputs. Press Start Run when ready.')
@@ -289,6 +306,54 @@ export class GameScene extends Phaser.Scene {
     return best ? { x: best.x, y: best.y } : null
   }
 
+  private applyRunStateIfAny() {
+    if (this.isPractice) { clearRunState(); return }
+    const rs = loadRunState()
+    if (!rs) return
+    this.level = rs.level
+    this.xp = rs.xp
+    this.xpToNext = rs.xpToNext
+    this.speed = rs.speed
+    this.attackCooldown = rs.attackCooldown
+    this.projSpeed = rs.projSpeed
+    this.projCount = rs.projCount
+    this.hasMagnet = rs.hasMagnet
+    this.magnetRadius = rs.magnetRadius
+    this.hasBlast = rs.hasBlast
+    this.attackRadius = rs.attackRadius
+    this.hp = rs.hp
+    this.fireRateLv = rs.fireRateLv
+    this.projLv = rs.projLv
+    this.speedLv = rs.speedLv
+    this.magnetLv = rs.magnetLv
+    this.blastLv = rs.blastLv
+    this.scheduleAttack()
+    clearRunState()
+  }
+
+  private exportRunState() {
+    const rs: RunBuild = {
+      level: this.level,
+      xp: this.xp,
+      xpToNext: this.xpToNext,
+      speed: this.speed,
+      attackCooldown: this.attackCooldown,
+      projSpeed: this.projSpeed,
+      projCount: this.projCount,
+      hasMagnet: this.hasMagnet,
+      magnetRadius: this.magnetRadius,
+      hasBlast: this.hasBlast,
+      attackRadius: this.attackRadius,
+      hp: this.hp,
+      fireRateLv: this.fireRateLv,
+      projLv: this.projLv,
+      speedLv: this.speedLv,
+      magnetLv: this.magnetLv,
+      blastLv: this.blastLv,
+    }
+    saveRunState(rs)
+  }
+
   private radialBlast() {
     const circle = this.add.circle(this.player.x, this.player.y, 6, 0x6ea8fe, 0.18)
     this.tweens.add({ targets: circle, radius: this.attackRadius * 1.4, alpha: 0, duration: 200, ease: 'Quad.easeOut', onComplete: () => circle.destroy() })
@@ -352,14 +417,19 @@ export class GameScene extends Phaser.Scene {
     if (selected.includes('Fire Rate')) {
       this.attackCooldown = Math.max(200, Math.round(this.attackCooldown * 0.8))
       this.scheduleAttack()
+      this.fireRateLv += 1
     } else if (selected.includes('Projectile')) {
       this.projCount = Math.min(5, this.projCount + 1)
+      this.projLv += 1
     } else if (selected.includes('Move Speed')) {
       this.speed = Math.min(400, Math.round(this.speed * 1.1))
+      this.speedLv += 1
     } else if (selected.includes('Magnet')) {
       this.magnetRadius = Math.min(300, this.magnetRadius * 1.25)
+      this.magnetLv += 1
     } else if (selected.includes('Blast')) {
       this.attackRadius = Math.min(400, this.attackRadius * 1.2)
+      this.blastLv += 1
     }
     this.inLevelUp = false
     if (this.attackEvt) this.attackEvt.paused = false
@@ -367,6 +437,7 @@ export class GameScene extends Phaser.Scene {
     if (this.runTimerEvt) this.runTimerEvt.paused = false
     this.physics.world.isPaused = false
     this.updateHUD2()
+    this.updateBuildHUD()
   }
 
   private perfAccum = 0
@@ -492,9 +563,9 @@ export class GameScene extends Phaser.Scene {
     if (this.attackEvt) this.attackEvt.paused = true
     if (this.runTimerEvt) this.runTimerEvt.paused = true
     this.physics.world.isPaused = true
+    if (reason === 'time') this.exportRunState()
     const survived = this.runSecInit - Math.max(0, this.runSecLeft)
-    const tokens = Math.max(1, Math.floor(this.kills / 12) + Math.floor(this.level / 2) + (reason === 'time' ? 2 : 0))
-    const detail = { reason, stage: this.stage, survived, level: this.level, kills: this.kills, tokens }
+    const detail = { reason, stage: this.stage, survived, level: this.level, kills: this.kills }
     window.dispatchEvent(new CustomEvent('runover:open', { detail }))
   }
 
@@ -508,6 +579,7 @@ export class GameScene extends Phaser.Scene {
     const timer = this.formatTime(Math.max(0, this.runSecLeft))
     const practice = this.isPractice ? ' PRACTICE' : ''
     this.uiText.setText(`Stage ${this.stage}${practice}  |  Time ${timer}\nHP ${this.hp}  Lv ${this.level}  XP ${this.xp}/${this.xpToNext}  Kills ${this.kills}`)
+    this.drawTimeBar()
   }
 
   private openPause() {
@@ -525,5 +597,28 @@ export class GameScene extends Phaser.Scene {
       if (this.runTimerEvt) this.runTimerEvt.paused = false
     }
     window.addEventListener('pause:resume', onResume)
+  }
+
+  private drawTimeBar() {
+    if (!this.timeBar) return
+    const w = 320, h = 10
+    const x = GAME_WIDTH / 2 - w / 2
+    const y = 6
+    const t = Phaser.Math.Clamp(this.runSecLeft / this.runSecInit, 0, 1)
+    this.timeBar.clear()
+    this.timeBar.fillStyle(0x23274a).fillRect(x, y, w, h)
+    this.timeBar.fillStyle(0x6ea8fe).fillRect(x, y, Math.floor(w * (1 - t)), h)
+  }
+
+  private updateBuildHUD() {
+    if (!this.buildHUD) return
+    const shotsPerSec = (1000 / this.attackCooldown).toFixed(2)
+    const lines: string[] = []
+    lines.push(`Proj: x${this.projCount}  Spd: ${this.projSpeed}`)
+    lines.push(`Rate: ${shotsPerSec}/s  CD: ${this.attackCooldown}ms`)
+    lines.push(`Move: ${this.speed}`)
+    if (this.hasMagnet) lines.push(`Magnet: r=${Math.round(this.magnetRadius)} (${Math.max(1, this.magnetLv)})`)
+    if (this.hasBlast) lines.push(`Blast: r=${Math.round(this.attackRadius)} (${Math.max(1, this.blastLv)})`)
+    this.buildHUD.setText(lines.join('\n'))
   }
 }

@@ -38,6 +38,17 @@ body {
 .choices { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .choices button[aria-selected="true"] { outline: 3px solid var(--accent); outline-offset: 2px; }
 
+/* Distinguish overlays visually */
+.overlay.levelup .overlay-card { border-color: #2a7fff; box-shadow: 0 10px 40px rgba(42,127,255,0.3); }
+.overlay.runover .overlay-card { border-color: #8e44ad; box-shadow: 0 10px 40px rgba(142,68,173,0.3); }
+
+/* Practice mode: dock settings overlay as a side panel */
+.practice-mode #settings-overlay { display: block; background: transparent; inset: 0 auto 0 0; width: 340px; }
+.practice-mode #settings-overlay .overlay-card { height: 100vh; width: 340px; border-radius: 0; box-shadow: none; overflow: auto; }
+.practice-mode #settings-overlay.visible { display: block; }
+.practice-mode #settings-overlay[aria-hidden="true"] { display: block; }
+.practice-mode #btn-close-settings { display: none; }
+
 /* High contrast theme */
 .high-contrast { --bg: #000; --fg: #fff; --fg-muted: #eee; --accent: #ffbf00; --btn: #111; --card: #000; }
 

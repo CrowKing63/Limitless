@@ -40,16 +40,11 @@ export class MenuScene extends Phaser.Scene {
       return btn
     }
 
-    makeBtn(cy + 60, 'Practice Mode', () => {
-      // Open settings panel on the side when entering practice
+    makeBtn(cy + 90, 'Start', () => {
+      // Start in practice mode (tutorial structure). Player can test mappings, then press Start Run in-game.
       window.dispatchEvent(new CustomEvent('ui:openSettings'))
       window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: true } }))
       this.scene.start('game', { practice: true })
-    })
-
-    makeBtn(cy + 110, 'Start Game', () => {
-      window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
-      this.scene.start('game', { practice: false })
     })
   }
 }

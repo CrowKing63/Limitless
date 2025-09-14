@@ -2,7 +2,8 @@ import './style.css'
 import Phaser from 'phaser'
 import { phaserConfig } from './game/config'
 import { applySettingsToDocument, emitSettingsChanged, loadSettings, saveSettings, type SettingsState } from './state/settings'
-import { addTokens, loadProgress, saveProgress, unlockNextStage } from './state/progress'
+import { loadProgress, saveProgress } from './state/progress'
+import { clearRunState } from './state/run'
 import { addReward } from './state/rewards'
 import { initSpeech } from './input/speech'
 import { initFaceInput, start as startFace, stop as stopFace } from './input/face'
@@ -42,7 +43,7 @@ const btnTutSkip = document.getElementById('btn-tut-skip') as HTMLButtonElement
 // Run Complete overlay elements
 const runoverOverlay = document.getElementById('runover-overlay') as HTMLElement
 const runoverSummary = document.getElementById('runover-summary') as HTMLElement
-const runoverReward = document.getElementById('runover-reward') as HTMLElement
+// Removed: token reward display
 const stageRewards = document.getElementById('stage-rewards') as HTMLElement
 const btnRewardMagnet = document.getElementById('reward-magnet') as HTMLButtonElement
 const btnRewardBlast = document.getElementById('reward-blast') as HTMLButtonElement
@@ -191,21 +192,15 @@ window.addEventListener('voice:command', (e: Event) => {
 
 // Run Complete overlay wiring
 function fmt(sec: number) { const m = Math.floor(sec / 60); const s = sec % 60; return `${m}:${s.toString().padStart(2, '0')}` }
-function costForNext(stage: number) { return Math.min(20, 3 + (stage - 1) * 2) }
+// Legacy cost function kept for reference (not used in new flow)
 
-function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived: number, level: number, kills: number, tokens: number }) {
-  // Award tokens and refresh progress
-  addTokens(detail.tokens)
-  const prog = loadProgress()
-  const cost = costForNext(prog.highestUnlocked)
+function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived: number, level: number, kills: number }) {
   const reason = detail.reason === 'time' ? 'Time up' : 'Defeat'
   runoverSummary.textContent = `Stage ${detail.stage} — ${reason} — Time ${fmt(detail.survived)} — Lv ${detail.level} — Kills ${detail.kills}`
-  runoverReward.textContent = `Tokens earned: ${detail.tokens} (Total: ${prog.tokens})`
   runoverOverlay.classList.add('visible')
   runoverOverlay.setAttribute('aria-hidden', 'false')
-  const canUnlock = prog.tokens >= cost
-  btnNextStage.disabled = detail.reason === 'time' ? true : !canUnlock
-  btnNextStage.textContent = canUnlock ? `Next Stage (cost ${cost})` : `Need ${cost - prog.tokens} more`
+  btnNextStage.disabled = detail.reason === 'time' ? true : true
+  btnNextStage.textContent = 'Next Stage'
   if (detail.reason === 'time') {
     stageRewards.querySelectorAll('button').forEach(b => b.removeAttribute('aria-selected'))
     stageRewards.setAttribute('aria-hidden', 'false')
@@ -232,14 +227,15 @@ function restartGame() {
 
 btnNextStage?.addEventListener('click', () => {
   const prog = loadProgress()
-  const cost = costForNext(prog.highestUnlocked)
-  if (unlockNextStage(cost)) restartGame()
-  else openRunover({ reason: 'time', stage: prog.currentStage, survived: 0, level: 0, kills: 0, tokens: 0 })
+  prog.currentStage = Math.max(1, (prog.currentStage || 1) + 1)
+  saveProgress(prog)
+  restartGame()
 })
-btnRetry?.addEventListener('click', () => restartGame())
+btnRetry?.addEventListener('click', () => { clearRunState(); restartGame() })
 btnMenu?.addEventListener('click', () => {
   runoverOverlay.classList.remove('visible')
   runoverOverlay.setAttribute('aria-hidden', 'true')
+  clearRunState()
   const g: any = game
   if (g) g.scene.start('menu')
 })
@@ -269,6 +265,7 @@ btnResume?.addEventListener('click', () => {
 btnQuit?.addEventListener('click', () => {
   pauseOverlay.classList.remove('visible')
   pauseOverlay.setAttribute('aria-hidden', 'true')
+  clearRunState()
   const g: any = game
   if (g) g.scene.start('menu')
   settingsOverlay.classList.remove('visible')
@@ -289,6 +286,9 @@ window.addEventListener('ui:practiceMode', (e: any) => {
   const enabled = !!e.detail?.enabled
   document.getElementById('topbar')?.setAttribute('aria-hidden', enabled ? 'false' : 'true')
   btnSettings.style.display = enabled ? '' : 'none'
+  document.body.classList.toggle('practice-mode', enabled)
+  if (enabled) { openSettings(); btnCloseSettings.style.display = 'none' }
+  else { btnCloseSettings.style.display = ''; settingsOverlay.classList.remove('visible'); settingsOverlay.setAttribute('aria-hidden', 'true') }
 })
 
 // Allow scenes to open Settings (practice startup)

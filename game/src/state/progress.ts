@@ -1,7 +1,6 @@
 export interface ProgressState {
   currentStage: number
   highestUnlocked: number
-  tokens: number
 }
 
 const KEY = 'limitless:progress:v1'
@@ -9,7 +8,6 @@ const KEY = 'limitless:progress:v1'
 const DEFAULT: ProgressState = {
   currentStage: 1,
   highestUnlocked: 1,
-  tokens: 0,
 }
 
 export function loadProgress(): ProgressState {
@@ -35,22 +33,6 @@ export function setCurrentStage(stage: number) {
   saveProgress(s)
 }
 
-export function addTokens(delta: number) {
-  const s = loadProgress()
-  s.tokens = Math.max(0, Math.floor(s.tokens + delta))
-  saveProgress(s)
-}
-
-export function unlockNextStage(cost: number): boolean {
-  const s = loadProgress()
-  const next = s.highestUnlocked + 1
-  if (s.tokens < cost) return false
-  s.tokens -= cost
-  s.highestUnlocked = next
-  s.currentStage = next
-  saveProgress(s)
-  return true
-}
+// Tokens and pay-to-unlock flow removed for clarity and accessibility.
 
 export function resetProgress() { saveProgress({ ...DEFAULT }) }
-
