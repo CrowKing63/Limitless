@@ -267,16 +267,7 @@ window.addEventListener('ui:practiceMode', (e: any) => {
 // Allow scenes to open Settings (practice startup)
 window.addEventListener('ui:openSettings', () => openSettings())
 
-// Sidebar Start Run → switch to real run
+// Sidebar Start Run → let GameScene handle transition
 btnStartRun?.addEventListener('click', () => {
-  document.body.classList.toggle('practice-mode', false)
-  settingsOverlay.classList.remove('visible')
-  settingsOverlay.setAttribute('aria-hidden', 'true')
-  window.dispatchEvent(new CustomEvent('pause:resume'))
-  const g: any = game
-  if (g) {
-    const scene = g.scene.getScene('game')
-    if (scene) scene.scene.restart({ practice: false })
-    else g.scene.start('game', { practice: false })
-  }
+  window.dispatchEvent(new CustomEvent('ui:start_run'))
 })

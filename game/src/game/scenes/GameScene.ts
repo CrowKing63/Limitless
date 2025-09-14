@@ -217,6 +217,18 @@ export class GameScene extends Phaser.Scene {
       window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: true } }))
       // Re-open settings after scene starts to ensure visibility on Safari
       this.time.delayedCall(50, () => window.dispatchEvent(new CustomEvent('ui:openSettings')))
+      const onStart = () => {
+        window.removeEventListener('ui:start_run', onStart as any)
+        // Ensure clean transition: unpause everything then restart scene as real run
+        this.physics.world.isPaused = false
+        if (this.spawnEvt) this.spawnEvt.paused = false
+        if (this.attackEvt) this.attackEvt.paused = false
+        if (this.runTimerEvt) this.runTimerEvt.paused = false
+        window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
+        this.scene.restart({ practice: false })
+      }
+      window.addEventListener('ui:start_run', onStart as any)
+      this.events.once('shutdown', () => window.removeEventListener('ui:start_run', onStart as any))
     } else {
       this.showHint('Click to move. Press Esc for Pause.')
       window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
