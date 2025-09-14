@@ -226,7 +226,7 @@ export class GameScene extends Phaser.Scene {
         window.dispatchEvent(new CustomEvent('pause:resume'))
         window.dispatchEvent(new CustomEvent('pause:levelup_close'))
         window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
-        this.scene.start('game', { practice: false })
+        this.scene.restart({ practice: false })
       })
     } else {
       this.showHint('Click to move. Press Esc for Pause.')

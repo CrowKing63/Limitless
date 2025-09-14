@@ -21,10 +21,10 @@ export class MenuScene extends Phaser.Scene {
     // Title & guide
     this.add.text(cx, cy - 130, 'Limitless Survivor', { color: '#e7e7ef', fontSize: '28px' }).setOrigin(0.5)
     const guide = [
-      '연습 모드에서 좌측 패널로 입력 방식을 테스트하세요.',
-      '클릭 이동 또는 포인터‑팔로우를 선택할 수 있어요.',
-      '얼굴 제스처/스캔 모드/머무름 클릭 등도 지원합니다.',
-      '준비되면 화면 우하단의 Start Run ▶ 을 눌러 본 게임 시작.',
+      'Use the left panel to try your input mapping.',
+      'Choose Click‑to‑Move or Pointer‑Follow.',
+      'You can also test Face gestures, Scan mode, or Dwell click.',
+      'When you are ready, press Start Run ▶ (bottom‑right).',
     ].join('\n')
     this.add.text(cx, cy - 90, guide, { color: '#b9b9c9', fontSize: '14px', align: 'center' }).setOrigin(0.5)
 
