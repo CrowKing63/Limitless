@@ -14,12 +14,10 @@ const settings = loadSettings()
 applySettingsToDocument(settings)
 ;(window as any)._settings = settings
 
-const startOverlay = document.getElementById('start-overlay')!
 const settingsOverlay = document.getElementById('settings-overlay')!
-const btnStart = document.getElementById('btn-start') as HTMLButtonElement
-const btnSettings = document.getElementById('btn-settings') as HTMLButtonElement
+const btnSettings = document.getElementById('btn-settings') as HTMLButtonElement | null
 const btnCloseSettings = document.getElementById('btn-close-settings') as HTMLButtonElement
-const btnPTT = document.getElementById('btn-ptt') as HTMLButtonElement
+const btnPTT = document.getElementById('btn-ptt') as HTMLButtonElement | null
 const chkContrast = document.getElementById('chk-contrast') as HTMLInputElement
 const rngText = document.getElementById('rng-text') as HTMLInputElement
 const chkScan = document.getElementById('chk-scan') as HTMLInputElement
@@ -27,7 +25,7 @@ const chkFace = document.getElementById('chk-face') as HTMLInputElement
 const rngGain = document.getElementById('rng-gain') as HTMLInputElement
 const rngMaxDist = document.getElementById('rng-maxdist') as HTMLInputElement
 const rngCurve = document.getElementById('rng-curve') as HTMLInputElement
-const faceIndicator = document.getElementById('face-indicator') as HTMLSpanElement
+const faceIndicator = document.getElementById('face-indicator') as HTMLSpanElement | null
 const rngArrive = document.getElementById('rng-arrive') as HTMLInputElement
 const rngDeadzone = document.getElementById('rng-deadzone') as HTMLInputElement
 const rngScan = document.getElementById('rng-scan') as HTMLInputElement
@@ -37,9 +35,7 @@ const rngTilt = document.getElementById('rng-tilt') as HTMLInputElement
 const rngNudge = document.getElementById('rng-nudge') as HTMLInputElement
 const rngRepeat = document.getElementById('rng-repeat') as HTMLInputElement
 const diffRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="difficulty"]'))
-const tutOverlay = document.getElementById('tutorial-overlay') as HTMLElement
-const btnTutPractice = document.getElementById('btn-tut-practice') as HTMLButtonElement
-const btnTutSkip = document.getElementById('btn-tut-skip') as HTMLButtonElement
+// removed tutorial overlay
 // Run Complete overlay elements
 const runoverOverlay = document.getElementById('runover-overlay') as HTMLElement
 const runoverSummary = document.getElementById('runover-summary') as HTMLElement
@@ -84,9 +80,9 @@ function updateSettings(partial: Partial<SettingsState>) {
   ;(window as any)._settings = next
 }
 
-btnSettings.addEventListener('click', () => openSettings())
+btnSettings?.addEventListener('click', () => openSettings())
 btnCloseSettings.addEventListener('click', () => closeSettings())
-initSpeech(btnPTT)
+if (btnPTT) initSpeech(btnPTT)
 chkFace.addEventListener('change', async () => {
   if (chkFace.checked) {
     try {
@@ -119,36 +115,14 @@ radios.forEach(r => r.addEventListener('change', () => updateSettings({ movement
 diffRadios.forEach(r => r.addEventListener('change', () => updateSettings({ difficulty: (r.value as any) })))
 
 let game: Phaser.Game | null = null
-let stopStartScan: (() => void) | null = null
-btnStart.addEventListener('click', () => {
-  // Gesture gate achieved: create game instance
-  if (!game) game = new Phaser.Game(phaserConfig)
-  // Ensure current stage defaults to highest unlocked
-  const progStart = loadProgress()
-  if (!progStart.currentStage || progStart.currentStage < 1) {
-    progStart.currentStage = Math.max(1, progStart.highestUnlocked || 1)
-    saveProgress(progStart)
-  }
-  startOverlay.classList.remove('visible')
-  if (!localStorage.getItem('limitless:tutorialSeen')) {
-    tutOverlay.classList.add('visible')
-    tutOverlay.setAttribute('aria-hidden', 'false')
-  }
-  if (stopStartScan) { stopStartScan(); stopStartScan = null }
-})
-
-// Tutorial wires
-btnTutPractice?.addEventListener('click', () => {
-  tutOverlay.classList.remove('visible')
-  tutOverlay.setAttribute('aria-hidden', 'true')
-  window.dispatchEvent(new CustomEvent('tutorial:practice'))
-})
-btnTutSkip?.addEventListener('click', () => {
-  tutOverlay.classList.remove('visible')
-  tutOverlay.setAttribute('aria-hidden', 'true')
-  window.dispatchEvent(new CustomEvent('tutorial:play'))
-  localStorage.setItem('limitless:tutorialSeen', '1')
-})
+// Create game immediately (no initial popup)
+game = new Phaser.Game(phaserConfig)
+// Ensure stage defaults
+const progStart = loadProgress()
+if (!progStart.currentStage || progStart.currentStage < 1) {
+  progStart.currentStage = Math.max(1, progStart.highestUnlocked || 1)
+  saveProgress(progStart)
+}
 
 function openSettings() {
   settingsOverlay.classList.add('visible')
@@ -163,10 +137,7 @@ function closeSettings() {
 // Expose minimal for debugging
 Object.assign(window, { __game: () => game })
 
-// Start overlay scanning if needed
-if (settings.scanMode && startOverlay.classList.contains('visible')) {
-  stopStartScan = startScan(startOverlay)
-}
+// no start overlay
 
 // Face indicator direction arrow
 window.addEventListener('face:dir', (e: any) => {
@@ -182,7 +153,7 @@ window.addEventListener('face:dir', (e: any) => {
 window.addEventListener('voice:command', (e: Event) => {
   const d = (e as CustomEvent).detail as any
   if (!d || d.type !== 'ui') return
-  if (d.action === 'open_settings') { if (btnSettings.style.display !== 'none') openSettings() }
+  if (d.action === 'open_settings') { if (btnSettings && btnSettings.style.display !== 'none') openSettings() }
   else if (d.action === 'close_settings') closeSettings()
   else if (d.action === 'toggle_contrast') updateSettings({ highContrast: !settings.highContrast })
   else if (d.action === 'toggle_scan') updateSettings({ scanMode: !settings.scanMode })
@@ -285,7 +256,7 @@ window.addEventListener('ui:inMenu', () => {
 window.addEventListener('ui:practiceMode', (e: any) => {
   const enabled = !!e.detail?.enabled
   document.getElementById('topbar')?.setAttribute('aria-hidden', enabled ? 'false' : 'true')
-  btnSettings.style.display = enabled ? '' : 'none'
+  if (btnSettings) btnSettings.style.display = enabled ? '' : 'none'
   document.body.classList.toggle('practice-mode', enabled)
   if (enabled) { openSettings(); btnCloseSettings.style.display = 'none' }
   else { btnCloseSettings.style.display = ''; settingsOverlay.classList.remove('visible'); settingsOverlay.setAttribute('aria-hidden', 'true') }

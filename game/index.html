@@ -10,24 +10,7 @@
   <body>
     <div id="app" aria-live="polite"></div>
 
-    <!-- Top HUD / Controls -->
-    <div id="topbar" class="hud" aria-hidden="true">
-      <button id="btn-settings" class="hud-btn" aria-haspopup="dialog" aria-controls="settings-overlay">Settings</button>
-      <button id="btn-ptt" class="hud-btn" aria-pressed="false" aria-label="Push to talk">🎤 PTT</button>
-      <span id="face-indicator" class="hud-indicator" aria-hidden="true" title="Face gesture direction"></span>
-    </div>
-
-    <!-- Start Overlay (gesture/audio gate) -->
-    <div id="start-overlay" class="overlay visible" role="dialog" aria-modal="true" aria-labelledby="start-title">
-      <div class="overlay-card">
-        <h1 id="start-title">Limitless Survivor</h1>
-        <p>One‑click movement, auto‑attack, and accessible controls.</p>
-        <button id="btn-start" class="primary">Play</button>
-        <p class="hint">Tip: Open Settings to choose click‑to‑move or pointer‑follow.</p>
-      </div>
-    </div>
-
-    <!-- Settings Overlay -->
+    <!-- Settings Panel (used as sidebar in practice-mode) -->
     <div id="settings-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" aria-hidden="true">
       <div class="overlay-card">
         <h2 id="settings-title">Settings</h2>
@@ -37,18 +20,22 @@
             <label><input type="radio" name="moveMode" value="click" checked /> Click‑to‑Move</label>
             <label><input type="radio" name="moveMode" value="follow" /> Pointer‑Follow</label>
           </div>
+          <p class="note">Click‑to‑Move: 한 번 클릭으로 목적지까지 이동합니다. Pointer‑Follow: 포인터와의 거리/방향에 따라 속도가 달라집니다.</p>
           <div class="row">
             <label for="rng-arrive">Arrival radius</label>
             <input id="rng-arrive" type="range" min="4" max="24" value="8" />
           </div>
+          <p class="note">도착 반경: 목표 지점에 얼마나 가까워지면 멈출지 결정합니다.</p>
           <div class="row">
             <label for="rng-deadzone">Follow dead‑zone</label>
             <input id="rng-deadzone" type="range" min="0" max="48" value="16" />
           </div>
+          <p class="note">데드존: 포인터와 너무 가까우면 움직이지 않습니다.</p>
           <div class="row">
             <label for="rng-gain">Follow speed gain</label>
             <input id="rng-gain" type="range" min="50" max="200" step="5" value="100" />
           </div>
+          <p class="note">속도 게인: 포인터와의 거리에 따른 속도 배율입니다.</p>
           <div class="row">
             <label for="rng-maxdist">Follow max distance</label>
             <input id="rng-maxdist" type="range" min="80" max="600" step="20" value="240" />
@@ -57,25 +44,31 @@
             <label for="rng-curve">Follow responsiveness</label>
             <input id="rng-curve" type="range" min="50" max="200" step="5" value="100" />
           </div>
+          <p class="note">반응성: 포인터가 멀어질 때 속도가 얼마나 빨리 증가할지 (곡선) 조절합니다.</p>
         </section>
         <section>
           <h3>Accessibility</h3>
           <label><input type="checkbox" id="chk-contrast" /> High‑contrast theme</label>
+          <p class="note">고대비 테마: 텍스트/UI 대비를 높여 가독성을 올립니다.</p>
           <div class="row">
             <label for="rng-text">Text size</label>
             <input id="rng-text" type="range" min="90" max="150" value="100" />
           </div>
+          <p class="note">텍스트 크기: 인터페이스 글자 크기를 키웁니다.</p>
           <label><input type="checkbox" id="chk-scan" /> One‑switch scan mode (beta)</label>
+          <p class="note">스캔 모드: 선택지가 자동으로 순환하며 스페이스/엔터로 선택합니다.</p>
           <div class="row">
             <label for="rng-scan">Scan speed</label>
             <input id="rng-scan" type="range" min="600" max="2400" step="100" value="1200" />
           </div>
           <label><input type="checkbox" id="chk-dwell" /> Dwell to activate</label>
+          <p class="note">응시/머무름 활성화: 커서를 올려두면 지정 시간 후 자동 클릭합니다.</p>
           <div class="row">
             <label for="rng-dwell">Dwell time</label>
             <input id="rng-dwell" type="range" min="500" max="2000" step="100" value="900" />
           </div>
           <label><input type="checkbox" id="chk-face" /> Face gestures (beta)</label>
+          <p class="note">얼굴 제스처: 좌/우/상/하 기울기만으로 1회성 ‘눌러 이동’을 실행합니다.</p>
           <div class="row">
             <label for="rng-tilt">Tilt sensitivity</label>
             <input id="rng-tilt" type="range" min="40" max="100" step="2" value="60" />
@@ -103,7 +96,7 @@
       </div>
     </div>
 
-    <!-- Level Up Overlay (placeholder) -->
+    <!-- Level Up Overlay (disabled in practice mode) -->
     <div id="levelup-overlay" class="overlay levelup" role="dialog" aria-modal="true" aria-labelledby="lvlup-title" aria-hidden="true">
       <div class="overlay-card">
         <h2 id="lvlup-title">Level Up</h2>
@@ -112,22 +105,6 @@
           <button role="option" data-choice="1">+20% Attack Rate (1)</button>
           <button role="option" data-choice="2">+1 Projectile (2)</button>
           <button role="option" data-choice="3">+10% Move Speed (3)</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tutorial Overlay -->
-    <div id="tutorial-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="tut-title" aria-hidden="true">
-      <div class="overlay-card">
-        <h2 id="tut-title">튜토리얼</h2>
-        <ol>
-          <li>이동: 클릭하거나 포인터‑팔로우를 켜세요.</li>
-          <li>공격: 자동으로 발동합니다.</li>
-          <li>레벨업: 세 가지 업그레이드 중 고르세요. 음성 “하나/둘/셋” 가능.</li>
-        </ol>
-        <div class="row">
-          <button id="btn-tut-practice" class="secondary">연습 시작</button>
-          <button id="btn-tut-skip" class="primary">바로 시작</button>
         </div>
       </div>
     </div>

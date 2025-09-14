@@ -221,6 +221,10 @@ export class GameScene extends Phaser.Scene {
       btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#8fbaff' }))
       btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#6ea8fe' }))
       btn.on('pointerdown', () => {
+        // Ensure any overlays are hidden and game is unpaused before transition
+        this.physics.world.isPaused = false
+        window.dispatchEvent(new CustomEvent('pause:resume'))
+        window.dispatchEvent(new CustomEvent('pause:levelup_close'))
         window.dispatchEvent(new CustomEvent('ui:practiceMode', { detail: { enabled: false } }))
         this.scene.start('game', { practice: false })
       })
@@ -367,6 +371,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private dropXP(x: number, y: number, value = 1) {
+    if (this.isPractice) return
     let orb = this.xpOrbs.getFirstDead(false) as Phaser.Types.Physics.Arcade.ImageWithDynamicBody | null
     if (!orb) {
       orb = this.xpOrbs.create(x, y, 'xp') as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
@@ -389,6 +394,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private checkLevelUp() {
+    if (this.isPractice) return
     while (this.xp >= this.xpToNext) {
       this.xp -= this.xpToNext
       this.level += 1
