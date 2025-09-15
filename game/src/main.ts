@@ -211,7 +211,10 @@ function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived:
     btnRetry.style.display = 'none'
     stageRewards.setAttribute('aria-hidden', 'true')
     stageRewards.classList.remove('visible')
+
     stageRewards.style.display = 'none'
+
+
     clearRunState()
     resetProgress()
   } else {
@@ -223,7 +226,10 @@ function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived:
     stageRewards.querySelectorAll('button').forEach(b => b.removeAttribute('aria-selected'))
     stageRewards.setAttribute('aria-hidden', 'false')
     stageRewards.classList.add('visible')
+
     stageRewards.style.display = ''
+
+
   }
   if (settings.scanMode) startScan(runoverOverlay)
 }
