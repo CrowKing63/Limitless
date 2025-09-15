@@ -65,65 +65,115 @@ export class Boot extends Phaser.Scene {
     }
 
     ensure('player', g => {
-      g.fillStyle(0x6ea8fe)
-      g.fillRect(6, 4, 20, 16) // seat
-      g.fillCircle(10, 24, 6) // left wheel
-      g.fillCircle(22, 24, 6) // right wheel
-      g.generateTexture('player', 32, 32)
+      // 16x16 wheelchair icon with occupant, high-contrast + 1px black outline
+      // Rear wheel (outline underlay)
+      g.lineStyle(1, 0x000000, 1).strokeCircle(7, 11, 5)
+      g.fillStyle(0x6ea8fe).fillCircle(7, 11, 5)
+      g.fillStyle(0x0d0f1c).fillCircle(7, 11, 2)
+      // Front caster
+      g.lineStyle(1, 0x000000, 1).strokeCircle(12, 14, 2)
+      g.fillStyle(0x6ea8fe).fillCircle(12, 14, 2)
+      // Seat + frame: draw black outline first, then colored stroke for contrast
+      g.lineStyle(3, 0x000000, 1)
+      g.beginPath(); g.moveTo(5, 6); g.lineTo(10, 6); g.lineTo(12, 10); g.strokePath()
+      g.beginPath(); g.moveTo(7, 6); g.lineTo(7, 9); g.strokePath()
+      g.lineStyle(2, 0x6ea8fe, 1)
+      g.beginPath(); g.moveTo(5, 6); g.lineTo(10, 6); g.lineTo(12, 10); g.strokePath()
+      g.beginPath(); g.moveTo(7, 6); g.lineTo(7, 9); g.strokePath()
+      // Occupant head
+      g.lineStyle(1, 0x000000, 1).strokeCircle(11, 4, 2)
+      g.fillStyle(0xffffff).fillCircle(11, 4, 2)
+      g.generateTexture('player', 16, 16)
       g.clear()
     })
 
     ensure('enemy', g => {
+      // Stairs (obstacle): three steps, red for threat with 1px outline
       g.fillStyle(0xff6b6b)
-      for (let i = 0; i < 3; i++) g.fillRect(i * 6, 18 - i * 6, 12, 6)
-      g.generateTexture('enemy', 32, 24)
+      g.fillRect(1, 11, 14, 4)
+      g.fillRect(5, 7, 10, 4)
+      g.fillRect(9, 3, 6, 4)
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(1, 11, 14, 4)
+      g.strokeRect(5, 7, 10, 4)
+      g.strokeRect(9, 3, 6, 4)
+      g.generateTexture('enemy', 16, 16)
       g.clear()
     })
 
     ensure('enemy_curb', g => {
-      g.fillStyle(0xd0d0d0)
-      g.fillRect(0, 10, 16, 6) // curb edge
-      g.fillStyle(0x909090)
-      g.fillRect(0, 14, 16, 2) // shadow line
+      // Curb / step edge: two-tone slab with edge highlight + outline
+      g.fillStyle(0xbfc3cf).fillRect(0, 9, 16, 7)
+      g.fillStyle(0x8f94a3).fillRect(0, 13, 16, 3)
+      g.fillStyle(0xffffff).fillRect(0, 9, 16, 1) // top highlight
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(0, 9, 16, 7)
+      g.strokeRect(0, 13, 16, 3)
       g.generateTexture('enemy_curb', 16, 16)
       g.clear()
     })
 
     ensure('enemy_turn', g => {
+      // Turnstile: post + arm with outline
       g.fillStyle(0xffbf00)
-      g.fillRect(7, 0, 2, 16) // vertical bar
-      g.fillRect(0, 7, 16, 2) // horizontal bar (turnstile cross)
+      g.fillRect(6, 3, 4, 10) // post
+      g.fillRect(4, 7, 12, 2) // arm
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(6, 3, 4, 10)
+      g.strokeRect(4, 7, 12, 2)
       g.generateTexture('enemy_turn', 16, 16)
       g.clear()
     })
 
     ensure('enemy_elev', g => {
-      // Elevator out-of-order sign: purple box with X
-      g.fillStyle(0x7e57c2)
-      g.fillRect(2, 2, 12, 12)
-      g.fillStyle(0x000000); g.fillRect(3, 3, 10, 10)
-      g.fillStyle(0xffffff)
-      g.fillRect(5, 5, 6, 1); g.fillRect(5, 10, 6, 1)
-      g.fillRect(5, 6, 1, 4); g.fillRect(10, 6, 1, 4)
+      // Elevator (doors) with out-of-order X overlay, all outlined
+      g.fillStyle(0x7e57c2).fillRect(1, 1, 14, 14)
+      g.lineStyle(1, 0x000000, 1).strokeRect(1, 1, 14, 14)
+      g.fillStyle(0xbfc3cf)
+      g.fillRect(4, 4, 4, 8) // left door
+      g.fillRect(8, 4, 4, 8) // right door
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(4, 4, 4, 8)
+      g.strokeRect(8, 4, 4, 8)
+      // Red X with black outline underneath
+      g.lineStyle(3, 0x000000, 1)
+      g.beginPath(); g.moveTo(3, 3); g.lineTo(13, 13); g.strokePath()
+      g.beginPath(); g.moveTo(13, 3); g.lineTo(3, 13); g.strokePath()
+      g.lineStyle(2, 0xff3b30, 1)
+      g.beginPath(); g.moveTo(3, 3); g.lineTo(13, 13); g.strokePath()
+      g.beginPath(); g.moveTo(13, 3); g.lineTo(3, 13); g.strokePath()
       g.generateTexture('enemy_elev', 16, 16)
       g.clear()
     })
 
     ensure('enemy_barrier', g => {
-      // Construction barricade: hazard stripes
-      g.fillStyle(0xff6b00); g.fillRect(1, 4, 14, 8)
+      // Construction barricade: hazard stripes on stand + outline
+      g.fillStyle(0xff6b00).fillRect(1, 5, 14, 6)
       g.fillStyle(0x000000)
-      for (let x = 1; x < 15; x += 4) g.fillRect(x, 4, 2, 8)
+      for (let x = 1; x < 15; x += 4) g.fillRect(x, 5, 2, 6)
+      g.lineStyle(1, 0x000000, 1).strokeRect(1, 5, 14, 6)
+      g.fillStyle(0x6b6b6b)
+      g.fillRect(3, 12, 3, 2); g.fillRect(10, 12, 3, 2)
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(3, 12, 3, 2); g.strokeRect(10, 12, 3, 2)
       g.generateTexture('enemy_barrier', 16, 16)
       g.clear()
     })
 
     ensure('enemy_sign', g => {
-      // No wheelchair sign (symbolic); circle with slash
-      g.fillStyle(0x222222); g.fillRect(0, 0, 16, 16)
-      g.lineStyle(2, 0xff0000, 1)
-      g.strokeCircle(8, 8, 6)
-      g.beginPath(); g.moveTo(4, 12); g.lineTo(12, 4); g.strokePath()
+      // Inaccessible route sign (wheelchair + slash)
+      g.fillStyle(0xffffff).fillCircle(7, 9, 3)
+      g.lineStyle(1, 0x000000, 1).strokeCircle(7, 9, 3)
+      g.fillStyle(0x0d0f1c).fillCircle(7, 9, 1)
+      g.fillStyle(0xffffff).fillRect(6, 6, 6, 2)
+      g.lineStyle(1, 0x000000, 1).strokeRect(6, 6, 6, 2)
+      g.fillStyle(0xffffff).fillRect(6, 6, 1, 4)
+      g.lineStyle(1, 0x000000, 1).strokeRect(6, 6, 1, 4)
+      // Red slash with black outline
+      g.lineStyle(3, 0x000000, 1)
+      g.beginPath(); g.moveTo(3, 13); g.lineTo(13, 3); g.strokePath()
+      g.lineStyle(2, 0xff3b30, 1)
+      g.beginPath(); g.moveTo(3, 13); g.lineTo(13, 3); g.strokePath()
       g.generateTexture('enemy_sign', 16, 16)
       g.clear()
     })

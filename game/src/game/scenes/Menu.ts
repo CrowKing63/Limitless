@@ -48,14 +48,16 @@ export class MenuScene extends Phaser.Scene {
     fire(stairs, player, 900)
 
     // Title & guide
-    this.add.text(cx, cy - 130, 'Limitless Survivor', { color: '#e7e7ef', fontSize: '28px' }).setOrigin(0.5)
+    const title = this.add.text(cx, cy - 130, 'Limitless Survivor', { color: '#e7e7ef', fontSize: '28px' }).setOrigin(0.5)
+    title.setStroke('#000', 4).setShadow(0, 2, '#000', 3, true, true)
     const guide = [
       'Use the left panel to try your input mapping.',
       'Choose Click‑to‑Move or Pointer‑Follow.',
       'You can also test Face gestures, Scan mode, or Dwell click.',
       'When you are ready, press Start Run ▶ (bottom‑right).',
     ].join('\n')
-    this.add.text(cx, cy - 90, guide, { color: '#b9b9c9', fontSize: '14px', align: 'center' }).setOrigin(0.5)
+    const guideText = this.add.text(cx, cy - 90, guide, { color: '#b9b9c9', fontSize: '14px', align: 'center' }).setOrigin(0.5)
+    guideText.setShadow(0, 1, '#000', 2, true, true)
 
     // Menu buttons
     const beep = (freq = 880) => {

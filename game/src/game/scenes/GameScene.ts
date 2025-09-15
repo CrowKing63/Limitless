@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { GAME_WIDTH, GAME_HEIGHT } from '../config'
+import { GAME_WIDTH, WORLD_WIDTH, WORLD_HEIGHT } from '../config'
 import { VirtualInput } from '../../input/VirtualInput'
 import { openLevelUp } from '../../ui/overlays'
 import { loadProgress } from '../../state/progress'
@@ -66,6 +66,8 @@ export class GameScene extends Phaser.Scene {
   private bossHp: number = 0
   private bossHpMax: number = 0
   private bossBar!: Phaser.GameObjects.Graphics
+  private bossAnchorX: number = 0
+  private bossAnchorY: number = 0
 
   constructor() { super('game') }
 
@@ -106,22 +108,30 @@ export class GameScene extends Phaser.Scene {
     // Short runs; extend slightly with stage
     this.runSecInit = Math.min(180, 90 + (this.stage - 1) * 15)
     this.runSecLeft = this.runSecInit
-    // Background tilemap (simple procedural)
+    // World bounds and camera follow for a larger map
+    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
+
+    // Background tilemap (prefers large dynamic map if Tiled is too small)
     this.createBackground()
     this.applyStageTheme()
 
     // Player (16x16 base, use spritesheet if available)
     if (this.textures.exists('player_sheet')) {
-      this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'player_sheet', 0)
+      this.player = this.physics.add.sprite(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 'player_sheet', 0)
       if (this.anims.exists('player-down')) this.player.play('player-down')
       else if (this.anims.exists('player-walk')) this.player.play('player-walk')
     } else {
-      this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'player', 0)
+      this.player = this.physics.add.sprite(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 'player', 0)
     }
-    this.player.setScale(2)
+    // Smaller on-screen character to open up space
+    this.player.setScale(1)
     this.player.setCircle(8)
     this.player.setCollideWorldBounds(true)
     if ((window as any)._settings?.highContrast) this.player.setTint(0xffbf00)
+
+    // Camera tracks the player
+    this.cameras.main.startFollow(this.player, true, 1, 1)
 
     // Input
     // Clear any residual input listeners from prior runs
@@ -241,11 +251,14 @@ export class GameScene extends Phaser.Scene {
 
     // UI
     this.uiText = this.add.text(8, 8, '', { color: '#e7e7ef', fontSize: '14px', fontFamily: 'Galmuri11' }).setScrollFactor(0)
+    // Improve readability with a thin outline and shadow
+    this.uiText.setStroke('#000', 3).setShadow(0, 1, '#000', 2, true, true)
     // Time progress bar (top center)
     this.timeBar = this.add.graphics().setScrollFactor(0)
     this.drawTimeBar()
     // Build HUD (top-right)
     this.buildHUD = this.add.text(GAME_WIDTH - 8, 8, '', { color: '#b9b9c9', fontSize: '12px', align: 'right', fontFamily: 'Galmuri11' }).setOrigin(1, 0).setScrollFactor(0)
+    this.buildHUD.setStroke('#000', 2).setShadow(0, 1, '#000', 2, true, true)
     this.updateHUD2()
     if (this.isPractice) {
       this.showHint('Practice: adjust left panel. Press Start Run in the sidebar when ready.')
@@ -269,10 +282,10 @@ export class GameScene extends Phaser.Scene {
     const side = Phaser.Math.Between(0, 3)
     const margin = 30
     let x = 0, y = 0
-    if (side === 0) { x = margin; y = Phaser.Math.Between(margin, GAME_HEIGHT - margin) }
-    else if (side === 1) { x = GAME_WIDTH - margin; y = Phaser.Math.Between(margin, GAME_HEIGHT - margin) }
-    else if (side === 2) { y = margin; x = Phaser.Math.Between(margin, GAME_WIDTH - margin) }
-    else { y = GAME_HEIGHT - margin; x = Phaser.Math.Between(margin, GAME_WIDTH - margin) }
+    if (side === 0) { x = margin; y = Phaser.Math.Between(margin, WORLD_HEIGHT - margin) }
+    else if (side === 1) { x = WORLD_WIDTH - margin; y = Phaser.Math.Between(margin, WORLD_HEIGHT - margin) }
+    else if (side === 2) { y = margin; x = Phaser.Math.Between(margin, WORLD_WIDTH - margin) }
+    else { y = WORLD_HEIGHT - margin; x = Phaser.Math.Between(margin, WORLD_WIDTH - margin) }
 
     let e = this.enemies.getFirstDead(false) as Enemy | null
     // Decide enemy type
@@ -334,7 +347,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showHint(text: string) {
-    const t = this.add.text(GAME_WIDTH / 2, 24, text, { color: '#e7e7ef', fontSize: '16px' }).setOrigin(0.5, 0)
+    // Screen-anchored hint
+    const t = this.add.text(GAME_WIDTH / 2, 24, text, { color: '#e7e7ef', fontSize: '16px' })
+      .setOrigin(0.5, 0).setScrollFactor(0)
     this.time.delayedCall(4500, () => t.destroy())
   }
 
@@ -363,20 +378,24 @@ export class GameScene extends Phaser.Scene {
 
   private createBackground() {
     if (!this.textures.exists('tiles')) return
-    // Use external Tiled map if available
+    // Prefer Tiled only if it is at least as large as our world
     const tm = (this.cache.tilemap as any).get('level1')
     if (tm) {
       const map = this.make.tilemap({ key: 'level1' })
       const tiles = map.addTilesetImage('tiles')
       if (tiles) {
-        const layer = map.createLayer(0, tiles, 0, 0)
-        if (layer) { layer.setDepth(-10); this.bgLayer = layer }
-        return
+        const pxW = (map as any).widthInPixels ?? (map.width * map.tileWidth)
+        const pxH = (map as any).heightInPixels ?? (map.height * map.tileHeight)
+        if (pxW >= WORLD_WIDTH && pxH >= WORLD_HEIGHT) {
+          const layer = map.createLayer(0, tiles, 0, 0)
+          if (layer) { layer.setDepth(-10); this.bgLayer = layer }
+          return
+        }
       }
     }
     const tw = 16, th = 16
-    const cols = Math.ceil(GAME_WIDTH / tw)
-    const rows = Math.ceil(GAME_HEIGHT / th)
+    const cols = Math.ceil(WORLD_WIDTH / tw)
+    const rows = Math.ceil(WORLD_HEIGHT / th)
     const data: number[][] = []
     for (let y = 0; y < rows; y++) {
       const row: number[] = []
@@ -820,7 +839,10 @@ export class GameScene extends Phaser.Scene {
     this.bossActive = true
     if (this.spawnEvt) this.spawnEvt.paused = true
     if (this.runTimerEvt) this.runTimerEvt.paused = true
-    const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT / 2
+    // Spawn near the camera center so it’s immediately visible
+    const cam = this.cameras.main
+    const cx = cam.worldView.centerX
+    const cy = cam.worldView.centerY
     const key = this.textures.exists('boss') ? 'boss' : (this.textures.exists('boss_sheet') ? 'boss_sheet' : 'enemy')
     this.boss = this.physics.add.sprite(cx, cy - 10, key, 0) as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
     this.boss.setScale(2)
@@ -829,6 +851,8 @@ export class GameScene extends Phaser.Scene {
     this.bossHp = this.bossHpMax
     this.bossBar = this.add.graphics().setScrollFactor(0)
     this.drawBossBar()
+    this.bossAnchorX = cx
+    this.bossAnchorY = cy - 10
     // Collisions: player ↔ boss
     this.physics.add.overlap(this.player, this.boss, () => this.onHitEnemy(undefined as any))
     // Collisions: our bullets ↔ boss
@@ -845,11 +869,11 @@ export class GameScene extends Phaser.Scene {
   private updateBoss() {
     const b = this.boss!
     if (!b.active) return
-    // Simple hover: circle around screen center
+    // Simple hover: circle around the spawn anchor (camera center at spawn)
     const t = this.time.now / 1200
     const R = 12
-    b.x = GAME_WIDTH / 2 + Math.cos(t) * R
-    b.y = GAME_HEIGHT / 2 - 10 + Math.sin(t * 1.2) * R
+    b.x = this.bossAnchorX + Math.cos(t) * R
+    b.y = this.bossAnchorY + Math.sin(t * 1.2) * R
     // Attacks
     const last = (b.getData('lastAtk') as number) || 0
     if (this.time.now - last > 1400) {
@@ -939,7 +963,7 @@ export class GameScene extends Phaser.Scene {
 
   private drawBossBar() {
     if (!this.bossBar) return
-    const w = 240, h = 8
+    const w = Math.min(260, GAME_WIDTH - 20), h = 8
     const x = GAME_WIDTH / 2 - w / 2
     const y = 20
     const t = Phaser.Math.Clamp(this.bossHp / Math.max(1, this.bossHpMax), 0, 1)
@@ -955,7 +979,9 @@ export class GameScene extends Phaser.Scene {
     // Big explosion FX
     const bursts = 4
     for (let i = 0; i < bursts; i++) {
-      this.time.delayedCall(i * 100, () => this.spawnHitFx(GAME_WIDTH / 2 + Phaser.Math.Between(-8,8), GAME_HEIGHT / 2 + Phaser.Math.Between(-8,8)))
+      const bx = this.bossAnchorX || this.player.x
+      const by = this.bossAnchorY || this.player.y
+      this.time.delayedCall(i * 100, () => this.spawnHitFx(bx + Phaser.Math.Between(-8,8), by + Phaser.Math.Between(-8,8)))
     }
     // Resume timer, end run as success with rewards
     if (this.runTimerEvt) this.runTimerEvt.paused = true
@@ -1056,7 +1082,7 @@ export class GameScene extends Phaser.Scene {
 
   private drawTimeBar() {
     if (!this.timeBar) return
-    const w = 320, h = 10
+    const w = Math.min(320, GAME_WIDTH - 16), h = 10
     const x = GAME_WIDTH / 2 - w / 2
     const y = 6
     const t = Phaser.Math.Clamp(this.runSecLeft / this.runSecInit, 0, 1)

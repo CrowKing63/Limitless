@@ -1,44 +1,37 @@
-Limitless Survivor — Agent Quick Guide (concise)
+# Repository Guidelines
 
-What
-- Top‑down survivor focused on accessibility and crisp 16×16 pixel art.
-- Phaser 3 + Vite + TypeScript; internal res 320×180 with integer zoom.
+## Project Structure & Module Organization
+- App lives in `game/` (Vite + TypeScript + Phaser 3).
+- Source: `game/src/`
+  - `game/src/game/scenes/*` scenes (Boot, Menu, GameScene).
+  - `game/src/state/*` run/settings/progress state.
+  - `game/src/input/*` input adapters (virtual, speech, face).
+  - `game/src/ui/*` DOM/ARIA overlays and scan UI.
+- Assets: `game/public/assets/*` (PNG, JSON, fonts). Build output: `game/dist/`.
 
-Run
-- Dev: `cd game && npm run dev`
-- Preview: `npm run build && npm run preview`
+## Build, Test, and Development Commands
+- `cd game && npm install` install deps.
+- `npm run dev` start Vite dev server.
+- `npm run build` type‑check then bundle to `dist/` (`--base=./` for Pages).
+- `npm run preview` serve the production build locally.
+- `npm run deploy:gh` publish `dist/` to `gh-pages`.
 
-Assets (drop‑in)
-- Put PNGs in `game/public/assets/`.
-- Known keys: `player.png`, `enemy.png`, `enemy_curb.png`, `enemy_turn.png`, `enemy_elev.png`, `enemy_barrier.png`, `enemy_sign.png`, `tiles.png`, `fx_explosion.png`, `boss.png`.
-- Tiled map: `public/assets/level1.json` (tileset name `tiles`, 16×16).
+## Coding Style & Naming Conventions
+- TypeScript strict; prefer `const`, no `any`, narrow types.
+- Indentation: 2 spaces; ES modules only.
+- Scenes and classes: PascalCase file and class names (e.g., `GameScene.ts`).
+- Modules/utilities: lowerCamel file names when not tied to a class (e.g., `overlays.ts`).
+- Assets: lowercase with underscores (e.g., `enemy_turn.png`). Keep 16×16 pixel grid; avoid sub‑pixel transforms.
 
-Pixel rules
-- Keep art 16×16 (or 32×32 at 2×). Avoid sub‑pixel transforms.
-- Engine: `pixelArt: true`, `roundPixels: true`; CSS `image-rendering: pixelated`.
+## Testing Guidelines
+- No automated tests are configured yet. Validate manually: load, start a run, level‑up overlay, settings toggles, PWA offline, and speech/face inputs.
+- If adding logic, include lightweight unit tests (suggested: Vitest). Name as `*.test.ts` next to sources.
 
-Settings (simplified)
-- Default view shows only: Movement Mode, Difficulty, High‑contrast theme, Text size.
-- Click “Show Advanced” to reveal: Scan/Dwell/Face; Telegraph duration/contrast; Screen shake; Palette (Default/High/Mono); High‑visibility projectiles.
+## Commit & Pull Request Guidelines
+- Use Conventional Commits: `feat: ...`, `fix: ...`, `chore: ...` (present‑tense, concise). Example: `feat: add projectile combat`.
+- Keep PRs focused; include description, linked issues, test steps, and before/after screenshots or a short screen capture.
+- Do not commit large binaries or `node_modules`. Commit `package-lock.json`.
 
-Gameplay
-- Enemies: stairs/curb/turn/elev/barrier/sign. HP scales by stage.
-- Boss: large (48×48) with 3 patterns (ring burst, aimed fan, zigzag dash) + HP bar.
-- Difficulty scales enemy speed/HP, projectile speed, telegraph length, and player damage.
-- FX: hit pop; optional `fx_explosion.png`; telegraphs respect settings.
-
-Recent changes (summary)
-- Pixel‑art pipeline + integer zoom at 320×180.
-- Directional player anims, 16×16 tile background, FX.
-- New enemies + accessible symbols; boss system with 3 patterns.
-- Difficulty + damage scaling; palette/hi‑visibility + screen shake options.
-- Settings panel simplified with Advanced toggle (collapsed by default).
-
-Touched files
-- `game/src/game/config.ts`, `game/src/style.css`, `game/src/main.ts`.
-- `game/src/game/scenes/Boot.ts`, `game/src/game/scenes/GameScene.ts`, `game/src/game/scenes/Menu.ts`.
-- `game/index.html`, `game/public/assets/level1.json`, `game/public/assets/fonts/*`.
-
-Contrib
-- Swap art by keeping texture keys; prefer CC0 assets.
-- Keep code minimal and grid‑aligned; no sub‑pixel movement.
+## Security & Configuration Tips
+- This is a static app; do not add secrets or server code. Progress persists in `localStorage` (`limitless:progress:v1`).
+- PWA uses `navigateFallback: 'index.html'`; keep `build --base=./` for subpath hosting (GitHub Pages).
