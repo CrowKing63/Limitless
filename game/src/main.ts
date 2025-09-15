@@ -211,6 +211,10 @@ function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived:
     btnRetry.style.display = 'none'
     stageRewards.setAttribute('aria-hidden', 'true')
     stageRewards.classList.remove('visible')
+
+    stageRewards.style.display = 'none'
+
+
     clearRunState()
     resetProgress()
   } else {
@@ -222,6 +226,10 @@ function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived:
     stageRewards.querySelectorAll('button').forEach(b => b.removeAttribute('aria-selected'))
     stageRewards.setAttribute('aria-hidden', 'false')
     stageRewards.classList.add('visible')
+
+    stageRewards.style.display = ''
+
+
   }
   if (settings.scanMode) startScan(runoverOverlay)
 }
@@ -237,6 +245,7 @@ function restartGame() {
   runoverOverlay.setAttribute('aria-hidden', 'true')
   stageRewards.setAttribute('aria-hidden', 'true')
   stageRewards.classList.remove('visible')
+  stageRewards.style.display = 'none'
 }
 
 btnNextStage?.addEventListener('click', () => {
@@ -252,7 +261,10 @@ btnMenu?.addEventListener('click', () => {
   clearRunState()
   if (lastRunoverReason === 'defeat') resetProgress()
   const g: any = game
-  if (g) g.scene.start('menu')
+  if (g) {
+    g.scene.stop('game')
+    g.scene.start('menu')
+  }
 })
 
 function chooseReward(r: 'magnet' | 'blast') {
