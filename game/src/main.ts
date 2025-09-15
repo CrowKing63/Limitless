@@ -2,7 +2,7 @@ import './style.css'
 import Phaser from 'phaser'
 import { phaserConfig, GAME_WIDTH, GAME_HEIGHT } from './game/config'
 import { applySettingsToDocument, emitSettingsChanged, loadSettings, saveSettings, type SettingsState } from './state/settings'
-import { loadProgress, saveProgress } from './state/progress'
+import { loadProgress, saveProgress, resetProgress } from './state/progress'
 import { clearRunState } from './state/run'
 import { addReward } from './state/rewards'
 import { initSpeech } from './input/speech'
@@ -45,6 +45,7 @@ const diffRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input
 // Run Complete overlay elements
 const runoverOverlay = document.getElementById('runover-overlay') as HTMLElement
 const runoverSummary = document.getElementById('runover-summary') as HTMLElement
+const runoverTitle = document.getElementById('runover-title') as HTMLElement
 // Removed: token reward display
 const stageRewards = document.getElementById('stage-rewards') as HTMLElement
 const btnRewardMagnet = document.getElementById('reward-magnet') as HTMLButtonElement
@@ -52,6 +53,7 @@ const btnRewardBlast = document.getElementById('reward-blast') as HTMLButtonElem
 const btnNextStage = document.getElementById('btn-next-stage') as HTMLButtonElement
 const btnRetry = document.getElementById('btn-retry') as HTMLButtonElement
 const btnMenu = document.getElementById('btn-menu') as HTMLButtonElement
+let lastRunoverReason: 'time' | 'defeat' | null = null
 // Pause overlay elements
 const pauseOverlay = document.getElementById('pause-overlay') as HTMLElement
 const btnResume = document.getElementById('btn-resume') as HTMLButtonElement
@@ -198,19 +200,28 @@ function fmt(sec: number) { const m = Math.floor(sec / 60); const s = sec % 60; 
 // Legacy cost function kept for reference (not used in new flow)
 
 function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived: number, level: number, kills: number }) {
+  lastRunoverReason = detail.reason
   const reason = detail.reason === 'time' ? 'Time up' : 'Defeat'
   runoverSummary.textContent = `Stage ${detail.stage} — ${reason} — Time ${fmt(detail.survived)} — Lv ${detail.level} — Kills ${detail.kills}`
   runoverOverlay.classList.add('visible')
   runoverOverlay.setAttribute('aria-hidden', 'false')
-  btnNextStage.disabled = detail.reason === 'time' ? true : true
-  btnNextStage.textContent = 'Next Stage'
-  if (detail.reason === 'time') {
+  if (detail.reason === 'defeat') {
+    runoverTitle.textContent = 'Game Over'
+    btnNextStage.style.display = 'none'
+    btnRetry.style.display = 'none'
+    stageRewards.setAttribute('aria-hidden', 'true')
+    stageRewards.classList.remove('visible')
+    clearRunState()
+    resetProgress()
+  } else {
+    runoverTitle.textContent = 'Run Complete'
+    btnNextStage.textContent = 'Next Stage'
+    btnNextStage.disabled = true
+    btnNextStage.style.display = ''
+    btnRetry.style.display = ''
     stageRewards.querySelectorAll('button').forEach(b => b.removeAttribute('aria-selected'))
     stageRewards.setAttribute('aria-hidden', 'false')
     stageRewards.classList.add('visible')
-  } else {
-    stageRewards.setAttribute('aria-hidden', 'true')
-    stageRewards.classList.remove('visible')
   }
   if (settings.scanMode) startScan(runoverOverlay)
 }
@@ -239,6 +250,7 @@ btnMenu?.addEventListener('click', () => {
   runoverOverlay.classList.remove('visible')
   runoverOverlay.setAttribute('aria-hidden', 'true')
   clearRunState()
+  if (lastRunoverReason === 'defeat') resetProgress()
   const g: any = game
   if (g) g.scene.start('menu')
 })
