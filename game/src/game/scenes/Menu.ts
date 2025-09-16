@@ -63,9 +63,30 @@ export class MenuScene extends Phaser.Scene {
     const beep = (freq = 880) => {
       const ctx = (this.sound as any).context as AudioContext | undefined
       if (!ctx) return
-      const osc = ctx.createOscillator(); const gain = ctx.createGain()
-      osc.frequency.value = freq; gain.gain.setValueAtTime(0.1, ctx.currentTime)
-      osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.08)
+      
+      if (freq === 880 || freq === 900) {
+        // Use our new custom menu sound
+        const oscillator = ctx.createOscillator()
+        const gainNode = ctx.createGain()
+        
+        oscillator.connect(gainNode)
+        gainNode.connect(ctx.destination)
+        
+        // Create a clean, digital sound
+        oscillator.type = 'sine'
+        oscillator.frequency.setValueAtTime(880, ctx.currentTime) // A5
+        
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05)
+        
+        oscillator.start()
+        oscillator.stop(ctx.currentTime + 0.05)
+      } else {
+        // Fallback to original sound generation
+        const osc = ctx.createOscillator(); const gain = ctx.createGain()
+        osc.frequency.value = freq; gain.gain.setValueAtTime(0.1, ctx.currentTime)
+        osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.08)
+      }
     }
 
     const makeBtn = (y: number, label: string, cb: () => void) => {

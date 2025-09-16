@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- Curb with warning stripes -->
+  <rect x="0" y="10" width="16" height="5" fill="#bfc3cf"/>
+  <rect x="0" y="13" width="16" height="2" fill="#8f94a3"/>
+  <!-- Warning stripes -->
+  <rect x="0" y="10" width="16" height="1" fill="#ffffff"/>
+  <rect x="0" y="12" width="16" height="1" fill="#ff0000"/>
+  <!-- Outlines -->
+  <rect x="0" y="10" width="16" height="5" fill="none" stroke="#000000" stroke-width="1"/>
+  <rect x="0" y="13" width="16" height="2" fill="none" stroke="#000000" stroke-width="1"/>
+</svg>

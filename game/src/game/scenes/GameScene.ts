@@ -1017,14 +1017,162 @@ export class GameScene extends Phaser.Scene {
   private playSfx(freq: number) {
     const ctx = (this.sound as any).context as AudioContext | undefined
     if (!ctx) return
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.frequency.value = freq
-    gain.gain.setValueAtTime(0.1, ctx.currentTime)
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.1)
+    
+    // Map frequencies to specific sound types for better theming
+    if (freq === 660) {
+      // XP collection sound - empowerment
+      this.playEmpowermentSound()
+    } else if (freq === 880) {
+      // Click/menu sound
+      this.playMenuSound()
+    } else if (freq === 440) {
+      // Attack sound - empowerment projectile
+      this.playAttackSound()
+    } else if (freq === 520) {
+      // Blast sound
+      this.playBlastSound()
+    } else if (freq === 330) {
+      // Enemy hit sound
+      this.playEnemyHitSound()
+    } else if (freq === 180 || freq === 120) {
+      // Barrier/damage sound
+      this.playBarrierSound()
+    } else {
+      // Fallback to original sound generation
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.1, ctx.currentTime)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.1)
+    }
+  }
+
+  private playEmpowermentSound() {
+    const ctx = (this.sound as any).context as AudioContext | undefined
+    if (!ctx) return
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    
+    // Create an ascending, harmonious sound
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(523.25, ctx.currentTime) // C5
+    oscillator.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.3) // G5
+    
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
+    
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.3)
+  }
+
+  private playBarrierSound() {
+    const ctx = (this.sound as any).context as AudioContext | undefined
+    if (!ctx) return
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    
+    // Create a dissonant, descending sound
+    oscillator.type = 'square'
+    oscillator.frequency.setValueAtTime(220, ctx.currentTime) // A3
+    oscillator.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.2) // A2
+    
+    gainNode.gain.setValueAtTime(0.2, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2)
+    
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.2)
+  }
+
+  private playAttackSound() {
+    const ctx = (this.sound as any).context as AudioContext | undefined
+    if (!ctx) return
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    
+    // Create a sharp, focused sound
+    oscillator.type = 'sawtooth'
+    oscillator.frequency.setValueAtTime(440, ctx.currentTime) // A4
+    oscillator.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1) // A5
+    
+    gainNode.gain.setValueAtTime(0.15, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1)
+    
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.1)
+  }
+
+  private playEnemyHitSound() {
+    const ctx = (this.sound as any).context as AudioContext | undefined
+    if (!ctx) return
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    
+    // Create a short, percussive sound
+    oscillator.type = 'triangle'
+    oscillator.frequency.setValueAtTime(330, ctx.currentTime) // E4
+    oscillator.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.15) // A3
+    
+    gainNode.gain.setValueAtTime(0.2, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+    
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.15)
+  }
+
+  private playBlastSound() {
+    const ctx = (this.sound as any).context as AudioContext | undefined
+    if (!ctx) return
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    
+    // Create a powerful, resonant sound
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(110, ctx.currentTime) // A2
+    oscillator.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.4) // A1
+    
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4)
+    
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.4)
+  }
+
+  private playMenuSound() {
+    const ctx = (this.sound as any).context as AudioContext | undefined
+    if (!ctx) return
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    
+    // Create a clean, digital sound
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime) // A5
+    
+    gainNode.gain.setValueAtTime(0.1, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05)
+    
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.05)
   }
 
   private clearEnemies() {

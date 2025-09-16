@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- Grass/base ground -->
+  <rect width="16" height="16" fill="#2d5c2d"/>
+  <!-- Grid pattern for texture -->
+  <path d="M0 0 L16 16 M16 0 L0 16" stroke="#1e3c1e" stroke-width="0.5" opacity="0.3"/>
+  <!-- Small flowers/accessibility symbols -->
+  <circle cx="3" cy="3" r="1" fill="#ff6b6b"/>
+  <circle cx="12" cy="5" r="1" fill="#6ea8fe"/>
+  <circle cx="6" cy="12" r="1" fill="#9cfba5"/>
+  <!-- Pathway -->
+  <rect x="0" y="7" width="16" height="2" fill="#d4a017"/>
+</svg>

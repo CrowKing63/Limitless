@@ -11,6 +11,8 @@ Accessible Vampire Survivors–like built with Phaser 3 + TypeScript + Vite.
 - Voice controls (Web Speech API) with Korean/English keywords.
 - One‑switch scan mode for overlay navigation (Space/Enter to confirm).
 - Optional face gestures (beta): head tilt nudges movement.
+- Custom accessibility-themed assets representing disability rights and inclusion.
+- Thematic sound design that reinforces empowerment rather than violence.
 - PWA (offline‑capable); ready for static hosting.
 
 ## Run
@@ -59,5 +61,6 @@ npm run preview
 
 ## Accessibility Tips
 - Enable One‑switch Scan in Settings to cycle focus across overlay buttons (Start/Settings/Level‑Up/Run Complete). Space/Enter activates the highlighted control.
-- Increase “Text size” and enable “High‑contrast” as needed.
+- Increase "Text size" and enable "High‑contrast" as needed.
+- All game assets have been designed with accessibility in mind, using high contrast colors and clear visual representations of accessibility concepts.
 

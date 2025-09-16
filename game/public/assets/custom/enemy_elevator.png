@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- Elevator with out of order sign -->
+  <rect x="1" y="1" width="14" height="14" fill="#7e57c2"/>
+  <!-- Door panels -->
+  <rect x="4" y="4" width="3" height="8" fill="#bfc3cf"/>
+  <rect x="9" y="4" width="3" height="8" fill="#bfc3cf"/>
+  <!-- Out of order indicator -->
+  <circle cx="8" cy="13" r="1" fill="#ff0000"/>
+  <!-- Accessibility symbol with slash -->
+  <g transform="translate(4, 3)">
+    <circle cx="4" cy="3" r="1.5" fill="#ffffff"/>
+    <rect x="3.5" y="1.5" width="1" height="2" fill="#ffffff"/>
+    <rect x="3" y="4.5" width="2" height="0.5" fill="#ffffff"/>
+    <!-- Slash -->
+    <line x1="1" y1="6" x2="7" y2="0" stroke="#ff0000" stroke-width="1"/>
+  </g>
+  <!-- Outlines -->
+  <rect x="1" y="1" width="14" height="14" fill="none" stroke="#000000" stroke-width="1"/>
+  <rect x="4" y="4" width="3" height="8" fill="none" stroke="#000000" stroke-width="1"/>
+  <rect x="9" y="4" width="3" height="8" fill="none" stroke="#000000" stroke-width="1"/>
+</svg>
