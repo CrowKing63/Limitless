@@ -12,6 +12,7 @@ export interface PlayerStats {
   projSpeed: number;
   projCount: number;
   hp: number;
+  maxHp: number;
   fireRateLv: number;
   projLv: number;
   speedLv: number;
@@ -90,6 +91,9 @@ export class PlayerManager {
 
   setStats(stats: Partial<PlayerStats>): void {
     this.stats = { ...this.stats, ...stats };
+    if (this.stats.hp > this.stats.maxHp) {
+      this.stats.hp = this.stats.maxHp;
+    }
   }
 
   getSpeed(): number {
@@ -110,6 +114,10 @@ export class PlayerManager {
 
   getHp(): number {
     return this.stats.hp;
+  }
+
+  getMaxHp(): number {
+    return this.stats.maxHp;
   }
 
   getProjCount(): number {
@@ -154,6 +162,14 @@ export class PlayerManager {
 
   decrementHp(amount: number): void {
     this.stats.hp = Math.max(0, this.stats.hp - amount);
+  }
+
+  heal(amount: number): void {
+    this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + amount);
+  }
+
+  restoreFullHealth(): void {
+    this.stats.hp = this.stats.maxHp;
   }
 
   // Upgrade methods

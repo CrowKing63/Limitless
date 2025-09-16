@@ -4,7 +4,7 @@ import { VirtualInput } from '../../input/VirtualInput'
 import { openLevelUp } from '../../ui/overlays'
 import { loadProgress } from '../../state/progress'
 import { loadRewards } from '../../state/rewards'
-import { clearRunState, loadRunState, saveRunState, type RunBuild } from '../../state/run'
+import { clearRunState, loadRunState, saveRunState, type RunBuild, DEFAULT_MAX_HP } from '../../state/run'
 
 type Enemy = Phaser.Types.Physics.Arcade.ImageWithDynamicBody
 
@@ -42,8 +42,13 @@ export class GameScene extends Phaser.Scene {
   private runOver = false
   private stage = 1
   private kills = 0
-  private hp = 3
+  private maxHp = DEFAULT_MAX_HP
+  private hp = DEFAULT_MAX_HP
   private invulnUntil = 0
+  private lastDamageAt = 0
+  private regenAccumulator = 0
+  private regenDelayMs = 2500
+  private regenIntervalMs = 1000
   private practiceActive = false
   private projSpeed = 300
   private projCount = 1
@@ -85,8 +90,11 @@ export class GameScene extends Phaser.Scene {
     this.level = 1
     this.xp = 0
     this.xpToNext = 5
-    this.hp = 3
+    this.maxHp = DEFAULT_MAX_HP
+    this.hp = this.maxHp
     this.invulnUntil = 0
+    this.lastDamageAt = this.time.now
+    this.regenAccumulator = 0
     this.practiceActive = false
     // Base stats
     this.speed = 160
@@ -511,12 +519,15 @@ export class GameScene extends Phaser.Scene {
     this.magnetRadius = rs.magnetRadius
     this.hasBlast = rs.hasBlast
     this.attackRadius = rs.attackRadius
-    this.hp = rs.hp
+    this.maxHp = rs.maxHp
+    this.hp = Math.min(this.maxHp, rs.hp)
     this.fireRateLv = rs.fireRateLv
     this.projLv = rs.projLv
     this.speedLv = rs.speedLv
     this.magnetLv = rs.magnetLv
     this.blastLv = rs.blastLv
+    this.lastDamageAt = this.time.now
+    this.regenAccumulator = 0
     this.scheduleAttack()
     clearRunState()
   }
@@ -535,6 +546,7 @@ export class GameScene extends Phaser.Scene {
       hasBlast: this.hasBlast,
       attackRadius: this.attackRadius,
       hp: this.hp,
+      maxHp: this.maxHp,
       fireRateLv: this.fireRateLv,
       projLv: this.projLv,
       speedLv: this.speedLv,
@@ -631,6 +643,9 @@ export class GameScene extends Phaser.Scene {
       this.attackRadius = Math.min(400, this.attackRadius * 1.2)
       this.blastLv += 1
     }
+    this.hp = this.maxHp
+    this.lastDamageAt = this.time.now
+    this.regenAccumulator = 0
     this.inLevelUp = false
     if (this.attackEvt) this.attackEvt.paused = false
     if (this.spawnEvt) this.spawnEvt.paused = false
@@ -824,6 +839,27 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+
+    this.handleRegen(_dtMs)
+  }
+
+  private handleRegen(dtMs: number) {
+    if (this.runOver || this.inLevelUp) return
+    if (this.hp >= this.maxHp) {
+      this.regenAccumulator = 0
+      return
+    }
+    const now = this.time.now
+    if (now - this.lastDamageAt < this.regenDelayMs) {
+      this.regenAccumulator = 0
+      return
+    }
+    this.regenAccumulator += dtMs
+    if (this.regenAccumulator >= this.regenIntervalMs) {
+      this.hp = Math.min(this.maxHp, this.hp + 1)
+      this.regenAccumulator = 0
+      this.updateHUD2()
+    }
   }
 
   private maybeSpawnBoss() {
@@ -994,6 +1030,8 @@ export class GameScene extends Phaser.Scene {
     if (this.isPractice) return
     this.invulnUntil = now + 700
     this.hp = Math.max(0, this.hp - this.damageToPlayer)
+    this.lastDamageAt = now
+    this.regenAccumulator = 0
     this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 })
     this.playSfx(180)
     if ((window as any)._settings?.screenShake) this.cameras.main.shake(100, 0.004)
@@ -1007,6 +1045,8 @@ export class GameScene extends Phaser.Scene {
     if (this.isPractice) return
     this.invulnUntil = now + 700
     this.hp = Math.max(0, this.hp - this.damageToPlayer)
+    this.lastDamageAt = now
+    this.regenAccumulator = 0
     this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 })
     this.playSfx(120)
     if ((window as any)._settings?.screenShake) this.cameras.main.shake(120, 0.005)
@@ -1192,7 +1232,13 @@ export class GameScene extends Phaser.Scene {
     if (this.attackEvt) this.attackEvt.paused = true
     if (this.runTimerEvt) this.runTimerEvt.paused = true
     this.physics.world.isPaused = true
-    if (reason === 'time') this.exportRunState()
+    if (reason === 'time') {
+      this.hp = this.maxHp
+      this.lastDamageAt = this.time.now
+      this.regenAccumulator = 0
+      this.updateHUD2()
+      this.exportRunState()
+    }
     const survived = this.runSecInit - Math.max(0, this.runSecLeft)
     const detail = { reason, stage: this.stage, survived, level: this.level, kills: this.kills }
     window.dispatchEvent(new CustomEvent('runover:open', { detail }))
@@ -1207,7 +1253,7 @@ export class GameScene extends Phaser.Scene {
   private updateHUD2() {
     const timer = this.formatTime(Math.max(0, this.runSecLeft))
     const practice = this.isPractice ? ' PRACTICE' : ''
-    this.uiText.setText(`Stage ${this.stage}${practice}  |  Time ${timer}\nHP ${this.hp}  Lv ${this.level}  XP ${this.xp}/${this.xpToNext}  Kills ${this.kills}`)
+    this.uiText.setText(`Stage ${this.stage}${practice}  |  Time ${timer}\nHP ${this.hp}/${this.maxHp}  Lv ${this.level}  XP ${this.xp}/${this.xpToNext}  Kills ${this.kills}`)
     this.drawTimeBar()
   }
 
@@ -1279,6 +1325,9 @@ export class GameScene extends Phaser.Scene {
       this.hasBlast = true
       this.time.addEvent({ delay: 5000, loop: true, callback: () => this.radialBlast() })
     }
+    this.hp = this.maxHp
+    this.lastDamageAt = this.time.now
+    this.regenAccumulator = 0
     // Clean field to avoid leftover practice clutter
     this.clearEnemies()
     for (let i = 0; i < 6; i++) this.spawnEnemy()

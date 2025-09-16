@@ -1,3 +1,5 @@
+export const DEFAULT_MAX_HP = 6
+
 export interface RunBuild {
   level: number
   xp: number
@@ -11,6 +13,7 @@ export interface RunBuild {
   hasBlast: boolean
   attackRadius: number
   hp: number
+  maxHp: number
   // Upgrade counters for UI
   fireRateLv: number
   projLv: number
@@ -29,7 +32,10 @@ export function loadRunState(): RunBuild | null {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
-    return JSON.parse(raw) as RunBuild
+    const parsed = JSON.parse(raw) as Partial<RunBuild>
+    const maxHp = typeof parsed.maxHp === 'number' ? parsed.maxHp : DEFAULT_MAX_HP
+    const hp = typeof parsed.hp === 'number' ? parsed.hp : maxHp
+    return { ...parsed, maxHp, hp } as RunBuild
   } catch { return null }
 }
 
