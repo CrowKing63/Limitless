@@ -7,6 +7,7 @@ export interface UIState {
   runSecInit: number;
   stage: number;
   hp: number;
+  maxHp: number;
   level: number;
   xp: number;
   xpToNext: number;
@@ -46,7 +47,7 @@ export class UIManager {
     try {
       const timer = this.formatTime(Math.max(0, state.runSecLeft));
       const practice = state.isPractice ? ' PRACTICE' : '';
-      this.uiText.setText(`Stage ${state.stage}${practice}  |  Time ${timer}\nHP ${state.hp}  Lv ${state.level}  XP ${state.xp}/${state.xpToNext}  Kills ${state.kills}`);
+      this.uiText.setText(`Stage ${state.stage}${practice}  |  Time ${timer}\nHP ${state.hp}/${state.maxHp}  Lv ${state.level}  XP ${state.xp}/${state.xpToNext}  Kills ${state.kills}`);
       this.drawTimeBar(state.runSecLeft, state.runSecInit);
     } catch (error) {
       Logger.error('Failed to update HUD', error as Error);

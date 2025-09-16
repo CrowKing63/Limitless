@@ -4,7 +4,7 @@ import { VirtualInput } from '../../input/VirtualInput';
 import { openLevelUp } from '../../ui/overlays';
 import { loadProgress } from '../../state/progress';
 import { loadRewards } from '../../state/rewards';
-import { clearRunState, loadRunState, saveRunState, type RunBuild } from '../../state/run';
+import { clearRunState, loadRunState, saveRunState, type RunBuild, DEFAULT_MAX_HP } from '../../state/run';
 import { Logger } from '../../utils/logger';
 import { EnemyManager, type EnemyConfig } from '../../managers/EnemyManager';
 import { PlayerManager, type PlayerStats } from '../../managers/PlayerManager';
@@ -47,6 +47,12 @@ export class GameScene extends Phaser.Scene {
   private buildHUD!: Phaser.GameObjects.Text;
   private runSecLeft = 90;
   private runSecInit = 90;
+
+  // Regeneration tracking
+  private regenAccumulator = 0;
+  private lastDamageAt = 0;
+  private readonly regenDelayMs = 2500;
+  private readonly regenIntervalMs = 1000;
 
   // Performance tracking
   private perfAccum = 0;
@@ -154,8 +160,13 @@ export class GameScene extends Phaser.Scene {
     this.runOver = false;
     this.inLevelUp = false;
     this.kills = 0;
-    this.playerManager.setInvulnUntil(0);
+    if (this.playerManager) {
+      this.playerManager.setInvulnUntil(0);
+      this.playerManager.restoreFullHealth();
+    }
     this.practiceActive = false;
+    this.regenAccumulator = 0;
+    this.lastDamageAt = this.time.now;
     if (this.spawnEvt) { this.spawnEvt.remove(false); this.spawnEvt = undefined; }
     if (this.attackEvt) { this.attackEvt.remove(false); this.attackEvt = undefined; }
     this.physics.world.isPaused = false;
@@ -186,7 +197,8 @@ export class GameScene extends Phaser.Scene {
       attackCooldown: 800,
       projSpeed: 300,
       projCount: 1,
-      hp: 3,
+      hp: DEFAULT_MAX_HP,
+      maxHp: DEFAULT_MAX_HP,
       fireRateLv: 0,
       projLv: 0,
       speedLv: 0,
@@ -531,6 +543,9 @@ export class GameScene extends Phaser.Scene {
     } catch (error) {
       Logger.error('Failed to trigger level up', error as Error);
     } finally {
+      this.playerManager.restoreFullHealth();
+      this.lastDamageAt = this.time.now;
+      this.regenAccumulator = 0;
       this.inLevelUp = false;
       if (this.attackEvt) this.attackEvt.paused = false;
       if (this.spawnEvt) this.spawnEvt.paused = false;
@@ -590,6 +605,27 @@ export class GameScene extends Phaser.Scene {
     // Magnet logic
     if (this.playerManager.getHasMagnet()) {
       this.handleMagnet();
+    }
+
+    this.handleRegen(_dtMs);
+  }
+
+  private handleRegen(dtMs: number): void {
+    if (this.runOver || this.inLevelUp) return;
+    if (this.playerManager.getHp() >= this.playerManager.getMaxHp()) {
+      this.regenAccumulator = 0;
+      return;
+    }
+    const now = this.time.now;
+    if (now - this.lastDamageAt < this.regenDelayMs) {
+      this.regenAccumulator = 0;
+      return;
+    }
+    this.regenAccumulator += dtMs;
+    if (this.regenAccumulator >= this.regenIntervalMs) {
+      this.playerManager.heal(1);
+      this.regenAccumulator = 0;
+      this.updateHUD();
     }
   }
 
@@ -654,12 +690,15 @@ export class GameScene extends Phaser.Scene {
       hasBlast: rs.hasBlast,
       attackRadius: rs.attackRadius,
       hp: rs.hp,
+      maxHp: rs.maxHp,
       fireRateLv: rs.fireRateLv,
       projLv: rs.projLv,
       speedLv: rs.speedLv,
       magnetLv: rs.magnetLv,
       blastLv: rs.blastLv,
     });
+    this.lastDamageAt = this.time.now;
+    this.regenAccumulator = 0;
     this.scheduleAttack();
     clearRunState();
   }
@@ -679,6 +718,7 @@ export class GameScene extends Phaser.Scene {
       hasBlast: stats.hasBlast,
       attackRadius: stats.attackRadius,
       hp: stats.hp,
+      maxHp: stats.maxHp,
       fireRateLv: stats.fireRateLv,
       projLv: stats.projLv,
       speedLv: stats.speedLv,
@@ -705,7 +745,13 @@ export class GameScene extends Phaser.Scene {
     if (this.attackEvt) this.attackEvt.paused = true;
     if (this.runTimerEvt) this.runTimerEvt.paused = true;
     this.physics.world.isPaused = true;
-    if (reason === 'time') this.exportRunState();
+    if (reason === 'time') {
+      this.playerManager.restoreFullHealth();
+      this.lastDamageAt = this.time.now;
+      this.regenAccumulator = 0;
+      this.updateHUD();
+      this.exportRunState();
+    }
     const survived = 90 - Math.max(0, 90); // This would need to be properly calculated
     const detail = { reason, stage: this.stage, survived, level: this.playerManager.getLevel(), kills: this.kills };
     window.dispatchEvent(new CustomEvent('runover:open', { detail }));
@@ -890,26 +936,28 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHUD(): void {
+    const stats = this.playerManager.getStats();
     const uiState: UIState = {
       runSecLeft: this.runSecLeft,
       runSecInit: this.runSecInit,
       stage: this.stage,
-      hp: this.playerManager.getHp(),
-      level: this.playerManager.getLevel(),
-      xp: this.playerManager.getXp(),
-      xpToNext: this.playerManager.getXpToNext(),
+      hp: stats.hp,
+      maxHp: stats.maxHp,
+      level: stats.level,
+      xp: stats.xp,
+      xpToNext: stats.xpToNext,
       kills: this.kills,
       isPractice: this.isPractice,
-      speed: this.playerManager.getSpeed(),
-      projSpeed: this.playerManager.getProjSpeed(),
-      attackCooldown: this.playerManager.getAttackCooldown(),
-      projCount: this.playerManager.getProjCount(),
-      hasMagnet: this.playerManager.getHasMagnet(),
-      magnetRadius: this.playerManager.getMagnetRadius(),
-      magnetLv: this.playerManager.getStats().magnetLv,
-      hasBlast: this.playerManager.getHasBlast(),
-      attackRadius: this.playerManager.getAttackRadius(),
-      blastLv: this.playerManager.getStats().blastLv,
+      speed: stats.speed,
+      projSpeed: stats.projSpeed,
+      attackCooldown: stats.attackCooldown,
+      projCount: stats.projCount,
+      hasMagnet: stats.hasMagnet,
+      magnetRadius: stats.magnetRadius,
+      magnetLv: stats.magnetLv,
+      hasBlast: stats.hasBlast,
+      attackRadius: stats.attackRadius,
+      blastLv: stats.blastLv,
     };
     this.uiManager.updateHUD(uiState);
   }
@@ -936,6 +984,7 @@ export class GameScene extends Phaser.Scene {
       hasBlast: stats.hasBlast,
       attackRadius: stats.attackRadius,
       blastLv: stats.blastLv,
+      maxHp: stats.maxHp,
     };
     this.uiManager.updateBuildHUD(uiState);
   }
@@ -972,6 +1021,9 @@ export class GameScene extends Phaser.Scene {
       this.playerManager.setStats({ hasBlast: true });
       this.time.addEvent({ delay: 5000, loop: true, callback: () => this.radialBlast() });
     }
+    this.playerManager.restoreFullHealth();
+    this.lastDamageAt = this.time.now;
+    this.regenAccumulator = 0;
     // Clean field to avoid leftover practice clutter
     this.clearEnemies();
     for (let i = 0; i < 6; i++) this.spawnEnemy();
@@ -987,6 +1039,8 @@ export class GameScene extends Phaser.Scene {
     if (this.isPractice) return;
     this.playerManager.setInvulnUntil(now + 700);
     this.playerManager.decrementHp(this.combatManager.getDamageToPlayer());
+    this.lastDamageAt = now;
+    this.regenAccumulator = 0;
     this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 });
     this.playSfx(180);
     if ((window as any)._settings?.screenShake) this.cameras.main.shake(100, 0.004);
@@ -1000,6 +1054,8 @@ export class GameScene extends Phaser.Scene {
     if (this.isPractice) return;
     this.playerManager.setInvulnUntil(now + 700);
     this.playerManager.decrementHp(this.combatManager.getDamageToPlayer());
+    this.lastDamageAt = now;
+    this.regenAccumulator = 0;
     this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 });
     this.playSfx(120);
     if ((window as any)._settings?.screenShake) this.cameras.main.shake(120, 0.005);
