@@ -6,10 +6,10 @@ import { loadProgress } from '../../state/progress';
 import { loadRewards } from '../../state/rewards';
 import { clearRunState, loadRunState, saveRunState, type RunBuild } from '../../state/run';
 import { Logger } from '../../utils/logger';
-import { EnemyManager, EnemyConfig } from '../managers/EnemyManager';
-import { PlayerManager, PlayerStats } from '../managers/PlayerManager';
-import { CombatManager, CombatConfig } from '../managers/CombatManager';
-import { UIManager, UIState } from '../managers/UIManager';
+import { EnemyManager, type EnemyConfig } from '../../managers/EnemyManager';
+import { PlayerManager, type PlayerStats } from '../../managers/PlayerManager';
+import { CombatManager, type CombatConfig } from '../../managers/CombatManager';
+import { UIManager, type UIState } from '../../managers/UIManager';
 
 type Enemy = Phaser.Types.Physics.Arcade.ImageWithDynamicBody;
 
@@ -40,12 +40,13 @@ export class GameScene extends Phaser.Scene {
   private runOver = false;
   private stage = 1;
   private kills = 0;
-  private invulnUntil = 0;
   private practiceActive = false;
   private isPractice = false;
   private lastAim = 0;
   private timeBar!: Phaser.GameObjects.Graphics;
   private buildHUD!: Phaser.GameObjects.Text;
+  private runSecLeft = 90;
+  private runSecInit = 90;
 
   // Performance tracking
   private perfAccum = 0;
@@ -55,14 +56,7 @@ export class GameScene extends Phaser.Scene {
   private lowSpec = false;
 
   // Boss fields
-  private boss?: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private bossActive: boolean = false;
-  private bossSpawned: boolean = false;
-  private bossHp: number = 0;
-  private bossHpMax: number = 0;
-  private bossBar!: Phaser.GameObjects.Graphics;
-  private bossAnchorX: number = 0;
-  private bossAnchorY: number = 0;
 
   constructor() {
     super('game');
@@ -83,8 +77,8 @@ export class GameScene extends Phaser.Scene {
       const prog = loadProgress();
       this.stage = Math.max(1, (prog as any)?.currentStage || (prog as any)?.highestUnlocked || 1);
       // Short runs; extend slightly with stage
-      const runSecInit = Math.min(180, 90 + (this.stage - 1) * 15);
-      const runSecLeft = runSecInit;
+      this.runSecInit = Math.min(180, 90 + (this.stage - 1) * 15);
+      this.runSecLeft = this.runSecInit;
       // World bounds and camera follow for a larger map
       this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
       this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -160,7 +154,7 @@ export class GameScene extends Phaser.Scene {
     this.runOver = false;
     this.inLevelUp = false;
     this.kills = 0;
-    this.invulnUntil = 0;
+    this.playerManager.setInvulnUntil(0);
     this.practiceActive = false;
     if (this.spawnEvt) { this.spawnEvt.remove(false); this.spawnEvt = undefined; }
     if (this.attackEvt) { this.attackEvt.remove(false); this.attackEvt = undefined; }
@@ -200,7 +194,8 @@ export class GameScene extends Phaser.Scene {
       blastLv: 0,
       hasMagnet: false,
       magnetRadius: 0,
-      hasBlast: false
+      hasBlast: false,
+      invulnUntil: 0
     };
     this.playerManager = new PlayerManager(this, this.player, this.inputLayer, initialStats);
   }
@@ -323,7 +318,9 @@ export class GameScene extends Phaser.Scene {
       this.runTimerEvt = this.time.addEvent({
         delay: 1000, loop: true, callback: () => {
           if (this.runOver) return;
-          // This would need to be handled differently in a refactored version
+          this.runSecLeft -= 1;
+          if (this.runSecLeft <= 0) this.endRun('time');
+          this.updateHUD();
         }
       });
     }
@@ -493,8 +490,11 @@ export class GameScene extends Phaser.Scene {
   private checkLevelUp(): void {
     if (this.isPractice) return;
     while (this.playerManager.getXp() >= this.playerManager.getXpToNext()) {
-      // This would need to be refactored to work with the PlayerManager
-      // For now, we'll keep the original logic but refactor it later
+      this.playerManager.incrementXp(-this.playerManager.getXpToNext());
+      this.playerManager.incrementLevel();
+      const newXpToNext = 5 + Math.floor(this.playerManager.getLevel() * 5);
+      this.playerManager.setStats({ xpToNext: newXpToNext });
+      this.triggerLevelUp();
     }
   }
 
@@ -743,8 +743,8 @@ export class GameScene extends Phaser.Scene {
 
   private updateHUD(): void {
     const uiState: UIState = {
-      runSecLeft: 90,
-      runSecInit: 90,
+      runSecLeft: this.runSecLeft,
+      runSecInit: this.runSecInit,
       stage: this.stage,
       hp: this.playerManager.getHp(),
       level: this.playerManager.getLevel(),
@@ -769,8 +769,8 @@ export class GameScene extends Phaser.Scene {
   private updateBuildHUD(): void {
     const stats = this.playerManager.getStats();
     const uiState: UIState = {
-      runSecLeft: 90,
-      runSecInit: 90,
+      runSecLeft: this.runSecLeft,
+      runSecInit: this.runSecInit,
       stage: this.stage,
       hp: stats.hp,
       level: stats.level,
@@ -806,11 +806,14 @@ export class GameScene extends Phaser.Scene {
       this.runTimerEvt = this.time.addEvent({
         delay: 1000, loop: true, callback: () => {
           if (this.runOver) return;
-          // This would need to be properly implemented
+          this.runSecLeft -= 1;
+          if (this.runSecLeft <= 0) this.endRun('time');
+          this.updateHUD();
         }
       });
     }
     // Reset timer to full for a fresh run
+    this.runSecLeft = this.runSecInit;
     // Re-apply any stage rewards if needed
     const rewards = loadRewards();
     const stats = this.playerManager.getStats();
@@ -831,10 +834,28 @@ export class GameScene extends Phaser.Scene {
 
   // Additional methods that would need to be implemented
   private onHitEnemy(_e: Enemy): void {
-    // Implementation would go here
+    const now = this.time.now;
+    if (now < this.playerManager.getInvulnUntil() || this.runOver || this.inLevelUp) return;
+    if (this.isPractice) return;
+    this.playerManager.setInvulnUntil(now + 700);
+    this.playerManager.decrementHp(this.combatManager.getDamageToPlayer());
+    this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 });
+    this.playSfx(180);
+    if ((window as any)._settings?.screenShake) this.cameras.main.shake(100, 0.004);
+    if (this.playerManager.getHp() <= 0) this.endRun('defeat');
+    this.updateHUD();
   }
 
   private onBulletHitPlayer(): void {
-    // Implementation would go here
+    const now = this.time.now;
+    if (now < this.playerManager.getInvulnUntil() || this.runOver || this.inLevelUp) return;
+    if (this.isPractice) return;
+    this.playerManager.setInvulnUntil(now + 700);
+    this.playerManager.decrementHp(this.combatManager.getDamageToPlayer());
+    this.tweens.add({ targets: this.player, alpha: 0.3, yoyo: true, duration: 80, repeat: 2 });
+    this.playSfx(120);
+    if ((window as any)._settings?.screenShake) this.cameras.main.shake(120, 0.005);
+    if (this.playerManager.getHp() <= 0) this.endRun('defeat');
+    this.updateHUD();
   }
 }

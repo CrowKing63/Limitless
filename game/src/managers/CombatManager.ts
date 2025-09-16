@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { Logger } from '../utils/logger';
 import { Cache } from '../utils/cache';
-import { EnemyManager } from './EnemyManager';
 
 type Enemy = Phaser.Types.Physics.Arcade.ImageWithDynamicBody;
 
@@ -168,5 +167,9 @@ export class CombatManager {
 
   cleanup(): void {
     this.nearestEnemyCache.clear();
+  }
+
+  getDamageToPlayer(): number {
+    return this.config.damageToPlayer;
   }
 }

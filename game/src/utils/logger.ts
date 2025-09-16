@@ -1,8 +1,8 @@
 export class Logger {
   static debug(message: string, ...args: any[]) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[DEBUG] ${message}`, ...args);
-    }
+    // In a browser environment, we don't have process.env.NODE_ENV
+    // So we'll always log in development mode
+    console.log(`[DEBUG] ${message}`, ...args);
   }
 
   static info(message: string, ...args: any[]) {

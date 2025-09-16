@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Logger } from '../utils/logger';
-import { GAME_WIDTH, WORLD_WIDTH, WORLD_HEIGHT } from '../game/config';
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../game/config';
 
 type Enemy = Phaser.Types.Physics.Arcade.ImageWithDynamicBody;
 type EnemyType = 'stairs' | 'curb' | 'turn' | 'elev' | 'barrier' | 'sign';

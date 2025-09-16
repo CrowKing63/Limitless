@@ -20,6 +20,7 @@ export interface PlayerStats {
   hasMagnet: boolean;
   magnetRadius: number;
   hasBlast: boolean;
+  invulnUntil: number;
 }
 
 export class PlayerManager {
@@ -179,5 +180,13 @@ export class PlayerManager {
   upgradeBlast(): void {
     this.stats.attackRadius = Math.min(400, this.stats.attackRadius * 1.2);
     this.stats.blastLv += 1;
+  }
+
+  getInvulnUntil(): number {
+    return this.stats.invulnUntil;
+  }
+
+  setInvulnUntil(time: number): void {
+    this.stats.invulnUntil = time;
   }
 }
