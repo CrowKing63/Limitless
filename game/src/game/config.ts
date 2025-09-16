@@ -3,8 +3,8 @@ import { Boot } from './scenes/Boot'
 import { GameScene } from './scenes/GameScene'
 import { MenuScene } from './scenes/Menu'
 
-export const GAME_WIDTH = 320
-export const GAME_HEIGHT = 180
+export const GAME_WIDTH = 640
+export const GAME_HEIGHT = 360
 // World is larger than the viewport to reduce claustrophobia
 export const WORLD_SCALE = 3
 export const WORLD_WIDTH = GAME_WIDTH * WORLD_SCALE
@@ -32,7 +32,7 @@ export const phaserConfig: Phaser.Types.Core.GameConfig = {
   scale: {
     mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    zoom: 3,
+    zoom: 2,
   },
   scene: [Boot, MenuScene, GameScene],
 }
