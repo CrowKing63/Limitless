@@ -13,109 +13,210 @@
     <!-- Settings Panel (used as sidebar in practice-mode) -->
     <div id="settings-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" aria-hidden="true">
       <div class="overlay-card">
-        <h2 id="settings-title">Settings</h2>
-        <div class="row end" id="settings-toolbar">
-          <button id="btn-adv" class="secondary" aria-pressed="false">Show Advanced ▾</button>
-        </div>
-        <section>
-          <h3>Movement Mode</h3>
-          <div role="radiogroup" aria-label="Movement mode">
-            <label><input type="radio" name="moveMode" value="click" checked /> Click‑to‑Move</label>
-            <label><input type="radio" name="moveMode" value="follow" /> Pointer‑Follow</label>
+        <header class="settings-header">
+          <div>
+            <p class="eyebrow">Accessibility suite</p>
+            <h2 id="settings-title">Settings</h2>
+            <p class="subtitle">게임을 나에게 맞추세요. 모든 변경 사항은 즉시 저장되고 적용됩니다.</p>
           </div>
-          <p class="note">Click‑to‑Move: 한 번 클릭으로 목적지까지 이동합니다. Pointer‑Follow: 포인터와의 거리/방향에 따라 속도가 달라집니다.</p>
-          <div class="row">
-            <label for="rng-arrive">Arrival radius</label>
-            <input id="rng-arrive" type="range" min="4" max="24" value="8" />
+          <div class="header-actions" id="settings-toolbar">
+            <button id="btn-adv" type="button" class="secondary" aria-pressed="false" aria-expanded="false">Show Advanced ▾</button>
           </div>
-          <p class="note">도착 반경: 목표 지점에 얼마나 가까워지면 멈출지 결정합니다.</p>
-          <div class="row">
-            <label for="rng-deadzone">Follow dead‑zone</label>
-            <input id="rng-deadzone" type="range" min="0" max="48" value="16" />
+        </header>
+
+        <p id="settings-status" class="status-message" role="status" aria-live="polite"></p>
+
+        <section class="panel quick">
+          <h3>Quick presets</h3>
+          <p class="note">원하는 플레이 감각을 빠르게 적용해 보세요. 필요하면 언제든지 세부 옵션으로 조정할 수 있습니다.</p>
+          <div class="preset-grid">
+            <button id="btn-preset-vision" type="button" class="chip">Vision clarity</button>
+            <button id="btn-preset-motor" type="button" class="chip">Easy input</button>
+            <button id="btn-preset-focus" type="button" class="chip">Calm pacing</button>
           </div>
-          <p class="note">데드존: 포인터와 너무 가까우면 움직이지 않습니다.</p>
-          <div class="row">
-            <label for="rng-gain">Follow speed gain</label>
-            <input id="rng-gain" type="range" min="50" max="200" step="5" value="100" />
-          </div>
-          <p class="note">속도 게인: 포인터와의 거리에 따른 속도 배율입니다.</p>
-          <div class="row">
-            <label for="rng-maxdist">Follow max distance</label>
-            <input id="rng-maxdist" type="range" min="80" max="600" step="20" value="240" />
-          </div>
-          <div class="row">
-            <label for="rng-curve">Follow responsiveness</label>
-            <input id="rng-curve" type="range" min="50" max="200" step="5" value="100" />
-          </div>
-          <p class="note">반응성: 포인터가 멀어질 때 속도가 얼마나 빨리 증가할지 (곡선) 조절합니다.</p>
+          <button id="btn-preset-reset" type="button" class="tertiary">Reset to default values</button>
         </section>
-        <div data-practice-only class="row end">
-          <button id="btn-start-run" class="primary">Start Run ▶</button>
-        </div>
-        <section>
-          <h3>Accessibility</h3>
-          <label><input type="checkbox" id="chk-contrast" /> High‑contrast theme</label>
-          <p class="note">고대비 테마: 텍스트/UI 대비를 높여 가독성을 올립니다.</p>
-          <div class="row">
-            <label for="rng-text">Text size</label>
-            <input id="rng-text" type="range" min="90" max="150" value="100" />
+
+        <section class="panel" aria-labelledby="input-heading">
+          <h3 id="input-heading">Input &amp; interaction</h3>
+          <fieldset role="radiogroup" aria-describedby="move-note">
+            <legend>Movement style</legend>
+            <p class="note" id="move-note">Click-to-Move는 한 번 클릭으로 이동하고, Pointer-Follow는 포인터 거리/방향에 따라 속도가 달라집니다.</p>
+            <label><input type="radio" name="moveMode" value="click" /> Click-to-Move</label>
+            <label><input type="radio" name="moveMode" value="follow" /> Pointer-Follow</label>
+          </fieldset>
+
+          <div class="control" data-advanced>
+            <div class="control-header">
+              <label for="rng-arrive">Arrival radius</label>
+              <output id="val-arrive" for="rng-arrive">8 px</output>
+            </div>
+            <input id="rng-arrive" type="range" min="4" max="24" value="8" aria-describedby="arrive-note" />
+            <p class="note" id="arrive-note">목표 지점에 얼마나 가까워지면 멈출지 결정합니다.</p>
           </div>
-          <p class="note">텍스트 크기: 인터페이스 글자 크기를 키웁니다.</p>
-          <label data-advanced><input type="checkbox" id="chk-scan" /> One‑switch scan mode (beta)</label>
-          <p class="note" data-advanced>스캔 모드: 선택지가 자동으로 순환하며 스페이스/엔터로 선택합니다.</p>
-          <div class="row" data-advanced>
-            <label for="rng-scan">Scan speed</label>
-            <input id="rng-scan" type="range" min="600" max="2400" step="100" value="1200" />
+
+          <div class="advanced-group" data-advanced>
+            <h4>Pointer follow tuning</h4>
+            <div class="control">
+              <div class="control-header">
+                <label for="rng-deadzone">Follow dead-zone</label>
+                <output id="val-deadzone" for="rng-deadzone">16 px</output>
+              </div>
+              <input id="rng-deadzone" type="range" min="0" max="48" value="16" aria-describedby="deadzone-note" />
+              <p class="note" id="deadzone-note">포인터와 너무 가까우면 움직이지 않도록 하는 안전 거리입니다.</p>
+            </div>
+            <div class="control">
+              <div class="control-header">
+                <label for="rng-gain">Follow speed gain</label>
+                <output id="val-gain" for="rng-gain">1.00×</output>
+              </div>
+              <input id="rng-gain" type="range" min="50" max="200" step="5" value="100" aria-describedby="gain-note" />
+              <p class="note" id="gain-note">포인터와의 거리가 늘어날 때 속도가 얼마나 빠르게 증가할지 결정합니다.</p>
+            </div>
+            <div class="control">
+              <div class="control-header">
+                <label for="rng-maxdist">Follow max distance</label>
+                <output id="val-maxdist" for="rng-maxdist">240 px</output>
+              </div>
+              <input id="rng-maxdist" type="range" min="80" max="600" step="20" value="240" aria-describedby="maxdist-note" />
+              <p class="note" id="maxdist-note">이 거리에 도달하면 최대 속도가 적용됩니다.</p>
+            </div>
+            <div class="control">
+              <div class="control-header">
+                <label for="rng-curve">Follow responsiveness</label>
+                <output id="val-curve" for="rng-curve">1.00×</output>
+              </div>
+              <input id="rng-curve" type="range" min="50" max="200" step="5" value="100" aria-describedby="curve-note" />
+              <p class="note" id="curve-note">속도 곡선: 포인터가 멀어질 때 속도가 얼마나 급격히 증가할지 조정합니다.</p>
+            </div>
           </div>
-          <label data-advanced><input type="checkbox" id="chk-dwell" /> Dwell to activate</label>
-          <p class="note" data-advanced>응시/머무름 활성화: 커서를 올려두면 지정 시간 후 자동 클릭합니다.</p>
-          <div class="row" data-advanced>
-            <label for="rng-dwell">Dwell time</label>
-            <input id="rng-dwell" type="range" min="500" max="2000" step="100" value="900" />
+
+          <div class="control" data-advanced>
+            <label><input type="checkbox" id="chk-dwell" /> Dwell to activate</label>
+            <p class="note">커서를 올려두면 지정 시간 후 자동으로 클릭합니다.</p>
           </div>
-          <label data-advanced><input type="checkbox" id="chk-face" /> Face gestures (beta)</label>
-          <p class="note" data-advanced>얼굴 제스처: 좌/우/상/하 기울기만으로 1회성 ‘눌러 이동’을 실행합니다.</p>
-          <div class="row" data-advanced>
-            <label for="rng-tilt">Tilt sensitivity</label>
-            <input id="rng-tilt" type="range" min="40" max="100" step="2" value="60" />
+          <div class="control" data-advanced>
+            <div class="control-header">
+              <label for="rng-dwell">Dwell time</label>
+              <output id="val-dwell" for="rng-dwell">0.9 s</output>
+            </div>
+            <input id="rng-dwell" type="range" min="500" max="2000" step="100" value="900" aria-describedby="dwell-note" />
+            <p class="note" id="dwell-note">자동 클릭이 발동하기까지 기다리는 시간입니다.</p>
           </div>
-          <div class="row" data-advanced>
-            <label for="rng-nudge">Nudge distance</label>
-            <input id="rng-nudge" type="range" min="80" max="320" step="10" value="160" />
+
+          <div class="control">
+            <label><input type="checkbox" id="chk-scan" /> One-switch scan mode</label>
+            <p class="note">선택지가 자동으로 순환하며 스페이스/엔터로 선택합니다.</p>
           </div>
-          <div class="row" data-advanced>
-            <label for="rng-repeat">Nudge repeat</label>
-            <input id="rng-repeat" type="range" min="200" max="600" step="20" value="300" />
+          <div class="control" data-advanced>
+            <div class="control-header">
+              <label for="rng-scan">Scan speed</label>
+              <output id="val-scan" for="rng-scan">1.2 s</output>
+            </div>
+            <input id="rng-scan" type="range" min="600" max="2400" step="100" value="1200" aria-describedby="scan-note" />
+            <p class="note" id="scan-note">선택 포커스가 다음 항목으로 이동하는 간격입니다.</p>
           </div>
-          <h4 data-advanced>Telegraph</h4>
-          <div class="row" data-advanced>
-            <label for="rng-tele">Telegraph duration</label>
-            <input id="rng-tele" type="range" min="80" max="400" step="20" value="200" />
+
+          <div class="control" data-advanced>
+            <label><input type="checkbox" id="chk-face" /> Face gestures (beta)</label>
+            <p class="note">좌/우/상/하로 얼굴을 기울여 1회성 이동 명령을 실행합니다.</p>
           </div>
-          <label data-advanced><input type="checkbox" id="chk-telebold" /> Extra contrast telegraph</label>
-          <div class="row" data-advanced><label><input type="checkbox" id="chk-shake" /> Screen shake (subtle)</label></div>
-          <h4 data-advanced>Visibility</h4>
-          <div class="row" data-advanced>
+          <div class="advanced-group" data-advanced>
+            <h4>Face gesture tuning</h4>
+            <div class="control">
+              <div class="control-header">
+                <label for="rng-tilt">Tilt sensitivity</label>
+                <output id="val-tilt" for="rng-tilt">0.06</output>
+              </div>
+              <input id="rng-tilt" type="range" min="40" max="100" step="2" value="60" aria-describedby="tilt-note" />
+              <p class="note" id="tilt-note">얼굴을 얼마나 기울여야 명령으로 인식할지 정합니다.</p>
+            </div>
+            <div class="control">
+              <div class="control-header">
+                <label for="rng-nudge">Nudge distance</label>
+                <output id="val-nudge" for="rng-nudge">160 px</output>
+              </div>
+              <input id="rng-nudge" type="range" min="80" max="320" step="10" value="160" aria-describedby="nudge-note" />
+              <p class="note" id="nudge-note">한 번의 제스처로 이동할 거리입니다.</p>
+            </div>
+            <div class="control">
+              <div class="control-header">
+                <label for="rng-repeat">Nudge repeat</label>
+                <output id="val-repeat" for="rng-repeat">0.3 s</output>
+              </div>
+              <input id="rng-repeat" type="range" min="200" max="600" step="20" value="300" aria-describedby="repeat-note" />
+              <p class="note" id="repeat-note">제스처가 유지될 때 반복 실행되는 간격입니다.</p>
+            </div>
+          </div>
+
+          <div data-practice-only class="row end">
+            <button id="btn-start-run" class="primary">Start Run ▶</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="visual-heading">
+          <h3 id="visual-heading">Visual clarity</h3>
+          <div class="control">
+            <label><input type="checkbox" id="chk-contrast" /> High-contrast theme</label>
+            <p class="note">텍스트와 UI의 대비를 높여 가독성을 향상합니다.</p>
+          </div>
+          <div class="control">
+            <div class="control-header">
+              <label for="rng-text">Text size</label>
+              <output id="val-text" for="rng-text">100%</output>
+            </div>
+            <input id="rng-text" type="range" min="90" max="150" value="100" aria-describedby="text-note" />
+            <p class="note" id="text-note">인터페이스 글자의 전체 크기를 조절합니다.</p>
+          </div>
+          <div class="control" data-advanced>
             <label for="sel-palette">Palette</label>
             <select id="sel-palette">
               <option value="default">Default</option>
-              <option value="high">High‑visibility</option>
+              <option value="high">High-visibility</option>
               <option value="mono">Grayscale</option>
             </select>
+            <p class="note">게임 월드의 색상을 바꾸어 대비를 맞춥니다.</p>
           </div>
-          <label data-advanced><input type="checkbox" id="chk-bulletbold" /> High‑visibility projectiles</label>
+          <div class="control" data-advanced>
+            <label><input type="checkbox" id="chk-bulletbold" /> High-visibility projectiles</label>
+            <p class="note">투사체 외곽선을 강조하여 화면에서 더욱 쉽게 볼 수 있습니다.</p>
+          </div>
         </section>
-        <section>
-          <h3>Difficulty</h3>
-          <div role="radiogroup" aria-label="Difficulty">
+
+        <section class="panel" aria-labelledby="feedback-heading">
+          <h3 id="feedback-heading">Feedback &amp; comfort</h3>
+          <div class="control" data-advanced>
+            <div class="control-header">
+              <label for="rng-tele">Telegraph duration</label>
+              <output id="val-tele" for="rng-tele">0.20 s</output>
+            </div>
+            <input id="rng-tele" type="range" min="80" max="400" step="20" value="200" aria-describedby="tele-note" />
+            <p class="note" id="tele-note">적 공격이 표시되는 시간을 늘리거나 줄입니다.</p>
+          </div>
+          <div class="control" data-advanced>
+            <label><input type="checkbox" id="chk-telebold" /> Extra contrast telegraph</label>
+            <p class="note">적 공격 예고선을 두껍고 선명하게 표시합니다.</p>
+          </div>
+          <div class="control" data-advanced>
+            <label><input type="checkbox" id="chk-shake" /> Screen shake</label>
+            <p class="note">화면 흔들림 효과로 타격감을 주지만, 멀미가 있다면 끄세요.</p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="difficulty-heading">
+          <h3 id="difficulty-heading">Difficulty</h3>
+          <fieldset role="radiogroup" aria-describedby="difficulty-note">
+            <legend>Challenge level</legend>
+            <p class="note" id="difficulty-note">원하는 페이스에 맞춰 적 강도와 생존 시간을 조절합니다.</p>
             <label><input type="radio" name="difficulty" value="relaxed" /> Relaxed</label>
-            <label><input type="radio" name="difficulty" value="standard" checked /> Standard</label>
+            <label><input type="radio" name="difficulty" value="standard" /> Standard</label>
             <label><input type="radio" name="difficulty" value="intense" /> Intense</label>
-          </div>
+          </fieldset>
         </section>
-        <div class="row end">
-          <button id="btn-close-settings" class="secondary">Close</button>
-        </div>
+
+        <footer class="settings-footer row end">
+          <button id="btn-close-settings" type="button" class="secondary">Close</button>
+        </footer>
       </div>
     </div>
 
