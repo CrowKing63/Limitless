@@ -685,6 +685,8 @@ export class GameScene extends Phaser.Scene {
       attackCooldown: rs.attackCooldown,
       projSpeed: rs.projSpeed,
       projCount: rs.projCount,
+      projectileDamage: rs.projectileDamage,
+      pierceTargets: rs.pierceTargets,
       hasMagnet: rs.hasMagnet,
       magnetRadius: rs.magnetRadius,
       hasBlast: rs.hasBlast,
@@ -693,10 +695,19 @@ export class GameScene extends Phaser.Scene {
       maxHp: rs.maxHp,
       fireRateLv: rs.fireRateLv,
       projLv: rs.projLv,
+      projSpeedLv: rs.projSpeedLv,
+      damageLv: rs.damageLv,
+      pierceLv: rs.pierceLv,
       speedLv: rs.speedLv,
       magnetLv: rs.magnetLv,
       blastLv: rs.blastLv,
-    });
+      staticFieldLv: rs.staticFieldLv,
+      staticFieldCooldown: rs.staticFieldCooldown,
+      staticFieldRadius: rs.staticFieldRadius,
+      staticFieldDamage: rs.staticFieldDamage,
+      droneLevel: rs.droneLevel,
+      droneDamage: rs.droneDamage,
+    } as any);
     this.lastDamageAt = this.time.now;
     this.regenAccumulator = 0;
     this.scheduleAttack();
@@ -713,6 +724,8 @@ export class GameScene extends Phaser.Scene {
       attackCooldown: stats.attackCooldown,
       projSpeed: stats.projSpeed,
       projCount: stats.projCount,
+      projectileDamage: (stats as any).projectileDamage ?? 1,
+      pierceTargets: (stats as any).pierceTargets ?? 0,
       hasMagnet: stats.hasMagnet,
       magnetRadius: stats.magnetRadius,
       hasBlast: stats.hasBlast,
@@ -721,9 +734,18 @@ export class GameScene extends Phaser.Scene {
       maxHp: stats.maxHp,
       fireRateLv: stats.fireRateLv,
       projLv: stats.projLv,
+      projSpeedLv: (stats as any).projSpeedLv ?? 0,
+      damageLv: (stats as any).damageLv ?? 0,
+      pierceLv: (stats as any).pierceLv ?? ((stats as any).pierceTargets ?? 0),
       speedLv: stats.speedLv,
       magnetLv: stats.magnetLv,
       blastLv: stats.blastLv,
+      staticFieldLv: (stats as any).staticFieldLv ?? 0,
+      staticFieldCooldown: (stats as any).staticFieldCooldown ?? 4500,
+      staticFieldRadius: (stats as any).staticFieldRadius ?? 120,
+      staticFieldDamage: (stats as any).staticFieldDamage ?? 1,
+      droneLevel: (stats as any).droneLevel ?? 0,
+      droneDamage: (stats as any).droneDamage ?? 1,
     };
     saveRunState(rs);
   }

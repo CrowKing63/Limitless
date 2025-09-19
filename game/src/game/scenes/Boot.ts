@@ -223,6 +223,14 @@ export class Boot extends Phaser.Scene {
       g.clear()
     })
 
+    ensure('drone', g => {
+      g.lineStyle(2, 0x000000, 1).strokeCircle(6, 6, 5)
+      g.fillStyle(0x9cfba5).fillCircle(6, 6, 4)
+      g.fillStyle(0xffffff, 0.8).fillCircle(8, 4, 1.5)
+      g.generateTexture('drone', 12, 12)
+      g.clear()
+    })
+
     // Pixel-perfect camera rounding across scenes
     this.cameras.main.setRoundPixels(true)
 

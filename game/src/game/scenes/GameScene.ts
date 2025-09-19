@@ -16,8 +16,12 @@ export class GameScene extends Phaser.Scene {
   private xpOrbs!: Phaser.Physics.Arcade.Group
   private projectiles!: Phaser.Physics.Arcade.Group
   private enemyBullets!: Phaser.Physics.Arcade.Group
+  private drones!: Phaser.Physics.Arcade.Group
   private uiText!: Phaser.GameObjects.Text
   private bgLayer?: Phaser.Tilemaps.TilemapLayer
+  private floorPattern?: Phaser.GameObjects.RenderTexture
+
+  private floorPalette: { even: number, odd: number, accent: number } = { even: 0x12162c, odd: 0x0d1122, accent: 0x1a1f35 }
 
   // Player stats
   private speed = 160
@@ -52,13 +56,29 @@ export class GameScene extends Phaser.Scene {
   private practiceActive = false
   private projSpeed = 300
   private projCount = 1
+  private projectileDamage = 1
+  private pierceTargets = 0
   private hasMagnet = false
   private magnetRadius = 0
   private hasBlast = false
+  private staticFieldLv = 0
+  private staticFieldCooldown = 4500
+  private staticFieldRadius = 100
+  private staticFieldDamage = 1
+  private nextStaticFieldAt = 0
+  private readonly maxDrones = 3
+  private droneLevel = 0
+  private droneDamage = 1
+  private droneOrbitRadius = 46
+  private droneRotationSpeed = Math.PI / 1800
+  private droneSprites: Phaser.Types.Physics.Arcade.ImageWithDynamicBody[] = []
   private isPractice = false
   private lastAim = 0
   private fireRateLv = 0
   private projLv = 0
+  private projSpeedLv = 0
+  private damageLv = 0
+  private pierceLv = 0
   private speedLv = 0
   private magnetLv = 0
   private blastLv = 0
@@ -102,9 +122,28 @@ export class GameScene extends Phaser.Scene {
     this.attackCooldown = 800
     this.projSpeed = 300
     this.projCount = 1
+    this.projectileDamage = 1
+    this.pierceTargets = 0
     this.hasMagnet = false
     this.magnetRadius = 0
     this.hasBlast = false
+    this.staticFieldLv = 0
+    this.staticFieldCooldown = 4500
+    this.staticFieldRadius = 100
+    this.staticFieldDamage = 1
+    this.nextStaticFieldAt = 0
+    this.droneLevel = 0
+    this.droneDamage = 1
+    this.droneOrbitRadius = 46
+    this.droneSprites = []
+    this.fireRateLv = 0
+    this.projLv = 0
+    this.projSpeedLv = 0
+    this.damageLv = 0
+    this.pierceLv = 0
+    this.speedLv = 0
+    this.magnetLv = 0
+    this.blastLv = 0
     if (this.spawnEvt) { this.spawnEvt.remove(false); this.spawnEvt = undefined }
     if (this.attackEvt) { this.attackEvt.remove(false); this.attackEvt = undefined }
     this.physics.world.isPaused = false
@@ -167,6 +206,8 @@ export class GameScene extends Phaser.Scene {
     this.xpOrbs = this.physics.add.group({ allowGravity: false })
     this.projectiles = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image })
     this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image })
+    this.drones = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, allowGravity: false })
+    this.droneSprites = []
     for (let i = 0; i < 6; i++) this.spawnEnemy()
 
     // Damage on touch (with brief i-frames)
@@ -182,11 +223,8 @@ export class GameScene extends Phaser.Scene {
       this.updateHUD2()
     })
 
-    this.physics.add.overlap(this.projectiles, this.enemies, (proj, e) => {
-      const p = proj as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
-      p.disableBody(true, true)
-      this.damageEnemy(e as Enemy, 1)
-    })
+    this.physics.add.overlap(this.projectiles, this.enemies, (proj, e) => this.onProjectileHitEnemy(proj as Phaser.Types.Physics.Arcade.ImageWithDynamicBody, e as Enemy))
+    this.physics.add.overlap(this.drones, this.enemies, (drone, e) => this.onDroneHitEnemy(drone as Phaser.Types.Physics.Arcade.ImageWithDynamicBody, e as Enemy))
     // Enemy bullets hit player
     this.physics.add.overlap(this.player, this.enemyBullets, (_p, b) => {
       const bb = b as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
@@ -384,8 +422,178 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: e, alpha: 0.5, yoyo: true, duration: 80, repeat: 0 })
   }
 
+  private onProjectileHitEnemy(proj: Phaser.Types.Physics.Arcade.ImageWithDynamicBody, enemy: Enemy) {
+    this.resolveProjectileHit(proj, () => this.damageEnemy(enemy, this.projectileDamage))
+  }
+
+  private onProjectileHitBoss(proj: Phaser.Types.Physics.Arcade.ImageWithDynamicBody) {
+    this.resolveProjectileHit(proj, () => this.damageBoss(this.projectileDamage))
+  }
+
+  private resolveProjectileHit(proj: Phaser.Types.Physics.Arcade.ImageWithDynamicBody, onDamage: () => void) {
+    const now = this.time.now
+    const immuneUntil = (proj.getData('immuneUntil') as number) || 0
+    if (immuneUntil > now) return
+    onDamage()
+    const pierceLeftRaw = proj.getData('pierceLeft')
+    const pierceLeft = typeof pierceLeftRaw === 'number' ? pierceLeftRaw : 0
+    if (pierceLeft > 0) {
+      proj.setData('pierceLeft', pierceLeft - 1)
+      proj.setData('immuneUntil', now + 80)
+      return
+    }
+    proj.disableBody(true, true)
+  }
+
+  private onDroneHitEnemy(drone: Phaser.Types.Physics.Arcade.ImageWithDynamicBody, enemy: Enemy) {
+    this.handleDroneImpact(drone, () => this.damageEnemy(enemy, this.droneDamage))
+  }
+
+  private onDroneHitBoss(drone: Phaser.Types.Physics.Arcade.ImageWithDynamicBody) {
+    this.handleDroneImpact(drone, () => this.damageBoss(this.droneDamage))
+  }
+
+  private handleDroneImpact(drone: Phaser.Types.Physics.Arcade.ImageWithDynamicBody, onDamage: () => void) {
+    const now = this.time.now
+    const cdUntil = (drone.getData('cdUntil') as number) || 0
+    if (now < cdUntil) return
+    drone.setData('cdUntil', now + 220)
+    onDamage()
+  }
+
+  private rebuildDronesFromState() {
+    if (!this.drones) return
+    this.drones.clear(true, true)
+    this.droneSprites = []
+    const desired = Math.min(this.droneLevel, this.maxDrones)
+    const baselineDamage = 1 + Math.max(0, this.droneLevel - this.maxDrones)
+    this.droneDamage = Math.min(5, Math.max(baselineDamage, this.droneDamage))
+    this.droneOrbitRadius = 46 + desired * 6
+    for (let i = 0; i < desired; i++) this.spawnOrbitingDrone()
+    this.refreshDroneAngles()
+    this.updateDroneVisuals()
+  }
+
+  private spawnOrbitingDrone() {
+    if (!this.drones) return
+    const key = this.textures.exists('drone') ? 'drone' : 'xp'
+    const sprite = this.drones.create(this.player.x, this.player.y, key) as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
+    sprite.setOrigin(0.5, 0.5)
+    sprite.setAlpha(0.95)
+    sprite.setDepth(2)
+    sprite.setData('angle', 0)
+    sprite.setData('cdUntil', 0)
+    const body = sprite.body as Phaser.Physics.Arcade.Body
+    body.setAllowGravity(false)
+    body.setImmovable(true)
+    body.setVelocity(0, 0)
+    body.setSize(sprite.displayWidth, sprite.displayHeight, true)
+    this.droneSprites.push(sprite)
+  }
+
+  private refreshDroneAngles() {
+    this.droneSprites = this.droneSprites.filter(d => d.active)
+    const count = this.droneSprites.length
+    if (count === 0) return
+    this.droneSprites.forEach((sprite, index) => {
+      const angle = (index / count) * Math.PI * 2
+      sprite.setData('angle', angle)
+    })
+  }
+
+  private updateDroneVisuals() {
+    const strong = this.droneDamage > 1
+    const tint = strong ? 0xfff07d : 0x9cfba5
+    const scale = strong ? 1.2 : 1.0
+    for (const sprite of this.droneSprites) {
+      if (!sprite.active) continue
+      if (strong) sprite.setTint(tint)
+      else sprite.clearTint()
+      sprite.setScale(scale)
+      const body = sprite.body as Phaser.Physics.Arcade.Body
+      body.setSize(sprite.displayWidth, sprite.displayHeight, true)
+    }
+  }
+
+  private updateDrones(dtMs: number) {
+    if (!this.droneSprites.length) return
+    const speed = this.droneRotationSpeed * dtMs
+    const now = this.time.now
+    this.droneSprites = this.droneSprites.filter(d => d.active)
+    const count = this.droneSprites.length
+    for (let i = 0; i < count; i++) {
+      const sprite = this.droneSprites[i]
+      const angle = ((sprite.getData('angle') as number) || 0) + speed
+      sprite.setData('angle', angle)
+      const wobble = Math.sin((now + i * 220) / 520) * 4
+      const radius = this.droneOrbitRadius + wobble
+      sprite.setPosition(
+        this.player.x + Math.cos(angle) * radius,
+        this.player.y + Math.sin(angle) * radius,
+      )
+      const body = sprite.body as Phaser.Physics.Arcade.Body
+      body.setVelocity(0, 0)
+    }
+  }
+
+  private upgradeDrone() {
+    this.droneLevel += 1
+    const desired = Math.min(this.droneLevel, this.maxDrones)
+    while (this.droneSprites.length < desired) this.spawnOrbitingDrone()
+    this.droneDamage = Math.min(5, 1 + Math.max(0, this.droneLevel - this.maxDrones))
+    this.droneOrbitRadius = Math.min(90, 46 + desired * 6)
+    this.refreshDroneAngles()
+    this.updateDroneVisuals()
+  }
+
+  private upgradeStaticField() {
+    this.staticFieldLv += 1
+    if (this.staticFieldLv === 1) {
+      this.staticFieldCooldown = 4500
+      this.staticFieldRadius = 120
+      this.staticFieldDamage = 1
+      this.nextStaticFieldAt = this.time.now + 1200
+    } else {
+      this.staticFieldCooldown = Math.max(2000, Math.round(this.staticFieldCooldown * 0.85))
+      this.staticFieldRadius = Math.min(240, this.staticFieldRadius + 18)
+      if (this.staticFieldLv % 2 === 0) this.staticFieldDamage = Math.min(6, this.staticFieldDamage + 1)
+      this.nextStaticFieldAt = Math.min(this.nextStaticFieldAt, this.time.now + 600)
+    }
+  }
+
+  private updateStaticField() {
+    if (this.staticFieldLv <= 0) return
+    if (this.time.now < this.nextStaticFieldAt) return
+    this.triggerStaticField()
+    this.nextStaticFieldAt = this.time.now + this.staticFieldCooldown
+  }
+
+  private triggerStaticField() {
+    const radius = this.staticFieldRadius
+    const circle = this.add.circle(this.player.x, this.player.y, 12, 0x6ea8fe, 0.22)
+    circle.setDepth(0)
+    const targetScale = radius / 12
+    this.tweens.add({ targets: circle, scale: targetScale, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => circle.destroy() })
+    this.playSfx(620)
+    const list = this.enemies.getChildren() as Enemy[]
+    for (const e of list) {
+      if (!e.active) continue
+      const dx = e.x - this.player.x
+      const dy = e.y - this.player.y
+      if (dx * dx + dy * dy <= radius * radius) this.damageEnemy(e, this.staticFieldDamage)
+    }
+    if (this.boss && this.bossActive) {
+      const dx = this.boss.x - this.player.x
+      const dy = this.boss.y - this.player.y
+      if (dx * dx + dy * dy <= radius * radius) this.damageBoss(this.staticFieldDamage)
+    }
+  }
+
   private createBackground() {
-    if (!this.textures.exists('tiles')) return
+    if (!this.textures.exists('tiles')) {
+      this.paintFloorPattern()
+      return
+    }
     // Prefer Tiled only if it is at least as large as our world
     const tm = (this.cache.tilemap as any).get('level1')
     if (tm) {
@@ -397,6 +605,7 @@ export class GameScene extends Phaser.Scene {
         if (pxW >= WORLD_WIDTH && pxH >= WORLD_HEIGHT) {
           const layer = map.createLayer(0, tiles, 0, 0)
           if (layer) { layer.setDepth(-10); this.bgLayer = layer }
+          this.paintFloorPattern()
           return
         }
       }
@@ -422,30 +631,63 @@ export class GameScene extends Phaser.Scene {
       const layer = map.createLayer(0, tiles, 0, 0)
       if (layer) { layer.setDepth(-10); this.bgLayer = layer }
     }
+    this.paintFloorPattern()
+  }
+
+  private ensureFloorPattern() {
+    if (!this.floorPattern) {
+      this.floorPattern = this.add.renderTexture(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
+        .setOrigin(0, 0)
+        .setDepth(-9)
+    }
+    this.floorPattern!.clear()
+    this.floorPattern!.setAlpha(0.45)
+  }
+
+  private paintFloorPattern() {
+    this.ensureFloorPattern()
+    if (!this.floorPattern) return
+    const pattern = this.floorPattern
+    const cell = 64
+    for (let y = 0; y < WORLD_HEIGHT; y += cell) {
+      for (let x = 0; x < WORLD_WIDTH; x += cell) {
+        const even = ((x / cell + y / cell) % 2 === 0)
+        pattern.fill(even ? this.floorPalette.even : this.floorPalette.odd, 1, x, y, cell, cell)
+        if (((x + y) / cell) % 3 === 0) pattern.fill(this.floorPalette.accent, 0.12, x + 18, y + 18, 12, 12)
+      }
+    }
+    const stripeGap = 160
+    const stripeHeight = 10
+    for (let y = -stripeGap; y < WORLD_HEIGHT + stripeGap; y += stripeGap) {
+      const offset = (Math.floor(y / stripeGap) % 2 === 0) ? 48 : 96
+      pattern.fill(this.floorPalette.accent, 0.3, 0, y + offset, WORLD_WIDTH, stripeHeight)
+    }
   }
 
   private applyStageTheme() {
     const pal = ((window as any)._settings?.palette as ('default'|'high'|'mono')) || 'default'
-    const table: Record<'default'|'high'|'mono', Record<number, { bg: number, tint: number }>> = {
+    const table: Record<'default'|'high'|'mono', Record<number, { bg: number, tint: number, grid: { even: number, odd: number, accent: number } }>> = {
       default: {
-        1: { bg: 0x0d0f1c, tint: 0xffffff },
-        2: { bg: 0x0f0f14, tint: 0xcde9ff },
-        3: { bg: 0x110d14, tint: 0xffe7cd },
+        1: { bg: 0x0d0f1c, tint: 0xffffff, grid: { even: 0x141a2f, odd: 0x0d1326, accent: 0x1f2946 } },
+        2: { bg: 0x0f0f14, tint: 0xcde9ff, grid: { even: 0x1a151f, odd: 0x120f19, accent: 0x2c1f2a } },
+        3: { bg: 0x110d14, tint: 0xffe7cd, grid: { even: 0x20111d, odd: 0x170c16, accent: 0x321825 } },
       },
       high: {
-        1: { bg: 0x000000, tint: 0xffffff },
-        2: { bg: 0x000000, tint: 0xfff4c1 },
-        3: { bg: 0x000000, tint: 0xc1e7ff },
+        1: { bg: 0x000000, tint: 0xffffff, grid: { even: 0x141414, odd: 0x090909, accent: 0x202020 } },
+        2: { bg: 0x000000, tint: 0xfff4c1, grid: { even: 0x1a1507, odd: 0x100d05, accent: 0x2d230a } },
+        3: { bg: 0x000000, tint: 0xc1e7ff, grid: { even: 0x09141a, odd: 0x050b10, accent: 0x142430 } },
       },
       mono: {
-        1: { bg: 0x000000, tint: 0xffffff },
-        2: { bg: 0x000000, tint: 0xdddddd },
-        3: { bg: 0x000000, tint: 0xcccccc },
+        1: { bg: 0x000000, tint: 0xffffff, grid: { even: 0x151515, odd: 0x0b0b0b, accent: 0x202020 } },
+        2: { bg: 0x000000, tint: 0xdddddd, grid: { even: 0x1a1a1a, odd: 0x0e0e0e, accent: 0x282828 } },
+        3: { bg: 0x000000, tint: 0xcccccc, grid: { even: 0x1c1c1c, odd: 0x101010, accent: 0x2f2f2f } },
       }
     }
     const t = (table[pal][this.stage] || table[pal][1])
     this.cameras.main.setBackgroundColor(t.bg as any)
     if (this.bgLayer) this.bgLayer.setTint(t.tint)
+    this.floorPalette = t.grid
+    this.paintFloorPattern()
   }
 
 
@@ -473,10 +715,31 @@ export class GameScene extends Phaser.Scene {
         b.enableBody(true, this.player.x, this.player.y, true, true)
         b.setTexture('bullet')
       }
-      b.setRotation(angle)
-      this.physics.velocityFromRotation(angle, this.projSpeed, b.body.velocity)
+      this.prepareProjectile(b, angle)
       this.time.delayedCall(1500, () => b!.disableBody(true, true))
     }
+  }
+
+  private currentProjectileScale(): number {
+    const dmgBonus = Math.max(0, this.projectileDamage - 1)
+    const pierceBonus = this.pierceTargets * 0.08
+    return 1 + Math.min(0.6, dmgBonus * 0.18 + pierceBonus)
+  }
+
+  private prepareProjectile(b: Phaser.Types.Physics.Arcade.ImageWithDynamicBody, angle: number) {
+    const tintNeeded = this.projectileDamage > 1 || this.pierceTargets > 0
+    if (tintNeeded) b.setTint(0xfff07d)
+    else b.clearTint()
+    const scale = this.currentProjectileScale()
+    b.setScale(scale)
+    const body = b.body as Phaser.Physics.Arcade.Body
+    body.setAllowGravity(false)
+    this.physics.velocityFromRotation(angle, this.projSpeed, body.velocity)
+    body.setSize(Math.max(4, b.displayWidth), Math.max(4, b.displayHeight), true)
+    b.setRotation(angle)
+    b.setDepth(1)
+    b.setData('pierceLeft', this.pierceTargets)
+    b.setData('immuneUntil', 0)
   }
 
   private enemyShootAt(sx: number, sy: number, tx: number, ty: number) {
@@ -515,6 +778,8 @@ export class GameScene extends Phaser.Scene {
     this.attackCooldown = rs.attackCooldown
     this.projSpeed = rs.projSpeed
     this.projCount = rs.projCount
+    this.projectileDamage = rs.projectileDamage
+    this.pierceTargets = rs.pierceTargets
     this.hasMagnet = rs.hasMagnet
     this.magnetRadius = rs.magnetRadius
     this.hasBlast = rs.hasBlast
@@ -523,9 +788,20 @@ export class GameScene extends Phaser.Scene {
     this.hp = Math.min(this.maxHp, rs.hp)
     this.fireRateLv = rs.fireRateLv
     this.projLv = rs.projLv
+    this.projSpeedLv = rs.projSpeedLv
+    this.damageLv = rs.damageLv
+    this.pierceLv = rs.pierceLv
     this.speedLv = rs.speedLv
     this.magnetLv = rs.magnetLv
     this.blastLv = rs.blastLv
+    this.staticFieldLv = rs.staticFieldLv
+    this.staticFieldCooldown = rs.staticFieldCooldown
+    this.staticFieldRadius = rs.staticFieldRadius
+    this.staticFieldDamage = rs.staticFieldDamage
+    this.droneLevel = rs.droneLevel
+    this.droneDamage = rs.droneDamage
+    this.nextStaticFieldAt = this.staticFieldLv > 0 ? this.time.now + 600 : 0
+    this.rebuildDronesFromState()
     this.lastDamageAt = this.time.now
     this.regenAccumulator = 0
     this.scheduleAttack()
@@ -541,6 +817,8 @@ export class GameScene extends Phaser.Scene {
       attackCooldown: this.attackCooldown,
       projSpeed: this.projSpeed,
       projCount: this.projCount,
+      projectileDamage: this.projectileDamage,
+      pierceTargets: this.pierceTargets,
       hasMagnet: this.hasMagnet,
       magnetRadius: this.magnetRadius,
       hasBlast: this.hasBlast,
@@ -549,9 +827,18 @@ export class GameScene extends Phaser.Scene {
       maxHp: this.maxHp,
       fireRateLv: this.fireRateLv,
       projLv: this.projLv,
+      projSpeedLv: this.projSpeedLv,
+      damageLv: this.damageLv,
+      pierceLv: this.pierceLv,
       speedLv: this.speedLv,
       magnetLv: this.magnetLv,
       blastLv: this.blastLv,
+      staticFieldLv: this.staticFieldLv,
+      staticFieldCooldown: this.staticFieldCooldown,
+      staticFieldRadius: this.staticFieldRadius,
+      staticFieldDamage: this.staticFieldDamage,
+      droneLevel: this.droneLevel,
+      droneDamage: this.droneDamage,
     }
     saveRunState(rs)
   }
@@ -616,43 +903,93 @@ export class GameScene extends Phaser.Scene {
     if (this.runTimerEvt) this.runTimerEvt.paused = true
     this.physics.world.isPaused = true
     // Present 3 upgrades
-    const pool = [
-      '+20% Fire Rate',
-      '+1 Projectile',
-      '+10% Move Speed',
+    const pool: Array<{ key: string, label: string }> = [
+      { key: 'fireRate', label: 'Rapid Fire (+20% rate)' },
+      { key: 'multiShot', label: '+1 Projectile' },
+      { key: 'moveSpeed', label: '+10% Move Speed' },
+      { key: 'projSpeed', label: 'Velocity Boost (+15% projectile speed)' },
+      { key: 'damage', label: 'Supercharged Shots (+1 damage)' },
     ]
-    if (this.hasMagnet) pool.push('+25% Magnet Radius')
-    if (this.hasBlast) pool.push('+20% Blast Radius')
-    const picks = Phaser.Utils.Array.Shuffle(pool).slice(0, 3)
-    const choice = await openLevelUp(picks)
+    if (this.pierceTargets < 3) {
+      const pierceLabel = this.pierceTargets === 0 ? 'Piercing Shots (bullets pierce +1 enemy)' : 'Piercing Shots (+1 pierce stack)'
+      pool.push({ key: 'pierce', label: pierceLabel })
+    }
+    if (this.staticFieldLv < 4) {
+      const staticLabel = this.staticFieldLv === 0 ? 'Static Field (shock pulse every few seconds)' : 'Static Field + (faster, stronger pulses)'
+      pool.push({ key: 'staticField', label: staticLabel })
+    }
+    if (this.droneLevel < 6) {
+      const droneLabel = this.droneLevel === 0 ? 'Guardian Drone (orbit ally damages foes)' : 'Guardian Drone + (adds ally or damage)'
+      pool.push({ key: 'drone', label: droneLabel })
+    }
+    pool.push({ key: 'magnet', label: this.hasMagnet ? 'Magnet Boost (+25% radius)' : 'Unlock Magnet (pull XP orbs)' })
+    if (this.hasBlast) pool.push({ key: 'blast', label: 'Blast Radius (+20%)' })
+    const picks = Phaser.Utils.Array.Shuffle(pool).slice(0, Math.min(3, pool.length))
+    const choice = await openLevelUp(picks.map(p => p.label))
     const selected = picks[choice]
-    if (selected.includes('Fire Rate')) {
-      this.attackCooldown = Math.max(200, Math.round(this.attackCooldown * 0.8))
-      this.scheduleAttack()
-      this.fireRateLv += 1
-    } else if (selected.includes('Projectile')) {
-      this.projCount = Math.min(5, this.projCount + 1)
-      this.projLv += 1
-    } else if (selected.includes('Move Speed')) {
-      this.speed = Math.min(400, Math.round(this.speed * 1.1))
-      this.speedLv += 1
-    } else if (selected.includes('Magnet')) {
-      this.magnetRadius = Math.min(300, this.magnetRadius * 1.25)
-      this.magnetLv += 1
-    } else if (selected.includes('Blast')) {
-      this.attackRadius = Math.min(400, this.attackRadius * 1.2)
-      this.blastLv += 1
+    if (selected) {
+      switch (selected.key) {
+        case 'fireRate':
+          this.attackCooldown = Math.max(180, Math.round(this.attackCooldown * 0.8))
+          this.scheduleAttack()
+          this.fireRateLv += 1
+          break
+        case 'multiShot':
+          this.projCount = Math.min(6, this.projCount + 1)
+          this.projLv += 1
+          break
+        case 'moveSpeed':
+          this.speed = Math.min(420, Math.round(this.speed * 1.1))
+          this.speedLv += 1
+          break
+        case 'projSpeed':
+          this.projSpeed = Math.min(720, Math.round(this.projSpeed * 1.15))
+          this.projSpeedLv += 1
+          break
+        case 'damage':
+          this.projectileDamage = Math.min(6, this.projectileDamage + 1)
+          this.damageLv += 1
+          break
+        case 'pierce':
+          this.pierceTargets = Math.min(3, this.pierceTargets + 1)
+          this.pierceLv = Math.min(3, this.pierceLv + 1)
+          break
+        case 'staticField':
+          this.upgradeStaticField()
+          break
+        case 'drone':
+          this.upgradeDrone()
+          break
+        case 'magnet':
+          if (!this.hasMagnet) {
+            this.hasMagnet = true
+            this.magnetRadius = Math.max(120, this.magnetRadius || 120)
+          } else {
+            this.magnetRadius = Math.min(320, Math.round((this.magnetRadius || 120) * 1.25))
+          }
+          this.magnetLv += 1
+          break
+        case 'blast':
+          this.attackRadius = Math.min(420, Math.round(this.attackRadius * 1.2))
+          this.blastLv += 1
+          break
+      }
+      this.updateDroneVisuals()
     }
     this.hp = this.maxHp
     this.lastDamageAt = this.time.now
     this.regenAccumulator = 0
+    this.resetAfterLevelUp()
+    this.updateHUD2()
+    this.updateBuildHUD()
+  }
+
+  private resetAfterLevelUp() {
     this.inLevelUp = false
     if (this.attackEvt) this.attackEvt.paused = false
     if (this.spawnEvt) this.spawnEvt.paused = false
     if (this.runTimerEvt) this.runTimerEvt.paused = false
     this.physics.world.isPaused = false
-    this.updateHUD2()
-    this.updateBuildHUD()
   }
 
   private perfAccum = 0
@@ -713,7 +1050,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  update(_: number, _dtMs: number) {
+  update(_time: number, dtMs: number) {
     if (this.inLevelUp) {
       this.player.setVelocity(0, 0)
       return
@@ -722,7 +1059,7 @@ export class GameScene extends Phaser.Scene {
       this.player.setVelocity(0, 0)
       return
     }
-    this.tickPerf(_dtMs)
+    this.tickPerf(dtMs)
     // Virtual input
     const dir = this.inputLayer.getMoveVector(this.player.x, this.player.y)
     // Allow arrow keys for dev testing
@@ -840,7 +1177,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.handleRegen(_dtMs)
+    this.updateDrones(dtMs)
+    this.updateStaticField()
+    this.handleRegen(dtMs)
   }
 
   private handleRegen(dtMs: number) {
@@ -892,11 +1231,8 @@ export class GameScene extends Phaser.Scene {
     // Collisions: player ↔ boss
     this.physics.add.overlap(this.player, this.boss, () => this.onHitEnemy(undefined as any))
     // Collisions: our bullets ↔ boss
-    this.physics.add.overlap(this.projectiles, this.boss, (proj) => {
-      const p = proj as Phaser.Types.Physics.Arcade.ImageWithDynamicBody
-      p.disableBody(true, true)
-      this.damageBoss(1)
-    })
+    this.physics.add.overlap(this.projectiles, this.boss, (proj) => this.onProjectileHitBoss(proj as Phaser.Types.Physics.Arcade.ImageWithDynamicBody))
+    this.physics.add.overlap(this.drones, this.boss, (drone) => this.onDroneHitBoss(drone as Phaser.Types.Physics.Arcade.ImageWithDynamicBody))
     // Entrance flash
     const ring = this.add.circle(this.boss.x, this.boss.y, 10, 0xffbf00, 0.35)
     this.tweens.add({ targets: ring, radius: 60, alpha: 0, duration: 600, onComplete: () => ring.destroy() })
@@ -1289,11 +1625,17 @@ export class GameScene extends Phaser.Scene {
     if (!this.buildHUD) return
     const shotsPerSec = (1000 / this.attackCooldown).toFixed(2)
     const lines: string[] = []
-    lines.push(`Proj: x${this.projCount}  Spd: ${this.projSpeed}`)
-    lines.push(`Rate: ${shotsPerSec}/s  CD: ${this.attackCooldown}ms`)
+    lines.push(`Proj: x${this.projCount}  Dmg: ${this.projectileDamage}  Pierce: ${this.pierceTargets}`)
+    lines.push(`Rate: ${shotsPerSec}/s  Speed: ${this.projSpeed}`)
     lines.push(`Move: ${this.speed}`)
-    if (this.hasMagnet) lines.push(`Magnet: r=${Math.round(this.magnetRadius)} (${Math.max(1, this.magnetLv)})`)
-    if (this.hasBlast) lines.push(`Blast: r=${Math.round(this.attackRadius)} (${Math.max(1, this.blastLv)})`)
+    if (this.staticFieldLv > 0) {
+      lines.push(`Static: Lv${this.staticFieldLv} r=${Math.round(this.staticFieldRadius)} cd ${(this.staticFieldCooldown / 1000).toFixed(1)}s`)
+    }
+    if (this.droneLevel > 0) {
+      lines.push(`Drones: ${Math.min(this.droneLevel, this.maxDrones)} dmg ${this.droneDamage}`)
+    }
+    if (this.hasMagnet) lines.push(`Magnet: r=${Math.round(this.magnetRadius)} (Lv ${Math.max(1, this.magnetLv)})`)
+    if (this.hasBlast) lines.push(`Blast: r=${Math.round(this.attackRadius)} (Lv ${Math.max(1, this.blastLv)})`)
     this.buildHUD.setText(lines.join('\n'))
   }
 
