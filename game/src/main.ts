@@ -1,7 +1,7 @@
 import './style.css'
 import Phaser from 'phaser'
 import { phaserConfig, GAME_WIDTH, GAME_HEIGHT } from './game/config'
-import { applySettingsToDocument, emitSettingsChanged, loadSettings, saveSettings, type SettingsState } from './state/settings'
+import { applySettingsToDocument, defaultSettings, emitSettingsChanged, loadSettings, saveSettings, type SettingsState } from './state/settings'
 import { loadProgress, saveProgress, resetProgress } from './state/progress'
 import { clearRunState } from './state/run'
 import { addReward } from './state/rewards'
@@ -41,6 +41,23 @@ const rngTilt = document.getElementById('rng-tilt') as HTMLInputElement
 const rngNudge = document.getElementById('rng-nudge') as HTMLInputElement
 const rngRepeat = document.getElementById('rng-repeat') as HTMLInputElement
 const diffRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="difficulty"]'))
+const btnPresetVision = document.getElementById('btn-preset-vision') as HTMLButtonElement | null
+const btnPresetMotor = document.getElementById('btn-preset-motor') as HTMLButtonElement | null
+const btnPresetFocus = document.getElementById('btn-preset-focus') as HTMLButtonElement | null
+const btnPresetReset = document.getElementById('btn-preset-reset') as HTMLButtonElement | null
+const statusRegion = document.getElementById('settings-status') as HTMLElement | null
+const valText = document.getElementById('val-text') as HTMLElement | null
+const valArrive = document.getElementById('val-arrive') as HTMLElement | null
+const valDeadzone = document.getElementById('val-deadzone') as HTMLElement | null
+const valGain = document.getElementById('val-gain') as HTMLElement | null
+const valMaxDist = document.getElementById('val-maxdist') as HTMLElement | null
+const valCurve = document.getElementById('val-curve') as HTMLElement | null
+const valDwell = document.getElementById('val-dwell') as HTMLElement | null
+const valScan = document.getElementById('val-scan') as HTMLElement | null
+const valTilt = document.getElementById('val-tilt') as HTMLElement | null
+const valNudge = document.getElementById('val-nudge') as HTMLElement | null
+const valRepeat = document.getElementById('val-repeat') as HTMLElement | null
+const valTele = document.getElementById('val-tele') as HTMLElement | null
 // removed tutorial overlay
 // Run Complete overlay elements
 const runoverOverlay = document.getElementById('runover-overlay') as HTMLElement
@@ -63,28 +80,77 @@ const btnStartRun = document.getElementById('btn-start-run') as HTMLButtonElemen
 
 // Movement mode radios
 const radios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="moveMode"]'))
-radios.forEach(r => (r.checked = r.value === settings.movementMode))
-chkContrast.checked = settings.highContrast
-rngText.value = String(settings.textScale)
-chkScan.checked = settings.scanMode
+
+function setOutput(el: HTMLElement | null, text: string) {
+  if (el) el.textContent = text
+}
+
+function formatSeconds(ms: number, fractionDigits = 1) {
+  return `${(ms / 1000).toFixed(fractionDigits)} s`
+}
+
+function formatMultiplier(value: number) {
+  return `${value.toFixed(2)}×`
+}
+
+function syncControls(state: SettingsState) {
+  radios.forEach(r => (r.checked = r.value === state.movementMode))
+  diffRadios.forEach(r => (r.checked = r.value === state.difficulty))
+  chkContrast.checked = state.highContrast
+  rngText.value = String(state.textScale)
+  setOutput(valText, `${state.textScale}%`)
+  chkScan.checked = state.scanMode
+  chkDwell.checked = state.dwellEnabled
+  rngDwell.value = String(state.dwellTime)
+  setOutput(valDwell, formatSeconds(state.dwellTime))
+  rngScan.value = String(state.scanInterval)
+  setOutput(valScan, formatSeconds(state.scanInterval))
+  rngArrive.value = String(state.clickArriveRadius)
+  setOutput(valArrive, `${state.clickArriveRadius} px`)
+  rngDeadzone.value = String(state.followDeadzone)
+  setOutput(valDeadzone, `${state.followDeadzone} px`)
+  rngGain.value = String(Math.round(state.followGain * 100))
+  setOutput(valGain, formatMultiplier(state.followGain))
+  rngMaxDist.value = String(state.followMaxDist)
+  setOutput(valMaxDist, `${state.followMaxDist} px`)
+  rngCurve.value = String(Math.round(state.followCurve * 100))
+  setOutput(valCurve, formatMultiplier(state.followCurve))
+  rngTilt.value = String(Math.round(state.faceTiltSensitivity * 1000))
+  setOutput(valTilt, state.faceTiltSensitivity.toFixed(2))
+  rngNudge.value = String(state.faceNudgeDistance)
+  setOutput(valNudge, `${state.faceNudgeDistance} px`)
+  rngRepeat.value = String(state.faceRepeatMs)
+  setOutput(valRepeat, formatSeconds(state.faceRepeatMs))
+  if (rngTele) {
+    rngTele.value = String(state.telegraphMs)
+    setOutput(valTele, formatSeconds(state.telegraphMs, 2))
+  }
+  if (chkTeleBold) chkTeleBold.checked = state.telegraphBold
+  if (selPalette) selPalette.value = state.palette
+  if (chkBulletBold) chkBulletBold.checked = state.projectileBold
+  if (chkShake) chkShake.checked = state.screenShake
+}
+
+let statusTimer: number | null = null
+
+function announce(message: string) {
+  if (!statusRegion) return
+  statusRegion.textContent = ''
+  statusRegion.classList.remove('visible')
+  void statusRegion.offsetWidth
+  statusRegion.textContent = message
+  statusRegion.classList.add('visible')
+  if (statusTimer != null) window.clearTimeout(statusTimer)
+  statusTimer = window.setTimeout(() => {
+    if (!statusRegion) return
+    statusRegion.classList.remove('visible')
+    statusRegion.textContent = ''
+    statusTimer = null
+  }, 6000)
+}
+
+syncControls(settings)
 chkFace.checked = false
-chkDwell.checked = settings.dwellEnabled
-rngDwell.value = String(settings.dwellTime)
-rngScan.value = String(settings.scanInterval)
-rngArrive.value = String(settings.clickArriveRadius)
-rngDeadzone.value = String(settings.followDeadzone)
-rngGain.value = String(Math.round(settings.followGain * 100))
-rngMaxDist.value = String(settings.followMaxDist)
-rngCurve.value = String(Math.round(settings.followCurve * 100))
-rngTilt.value = String(Math.round(settings.faceTiltSensitivity * 1000))
-rngNudge.value = String(settings.faceNudgeDistance)
-rngRepeat.value = String(settings.faceRepeatMs)
-if (rngTele) rngTele.value = String(settings.telegraphMs)
-if (chkTeleBold) chkTeleBold.checked = settings.telegraphBold
-if (selPalette) selPalette.value = settings.palette
-if (chkBulletBold) chkBulletBold.checked = settings.projectileBold
-if (chkShake) chkShake.checked = settings.screenShake
-diffRadios.forEach(r => (r.checked = r.value === settings.difficulty))
 
 function updateSettings(partial: Partial<SettingsState>) {
   const next = { ...settings, ...partial }
@@ -93,35 +159,113 @@ function updateSettings(partial: Partial<SettingsState>) {
   emitSettingsChanged(next)
   Object.assign(settings, next)
   ;(window as any)._settings = next
+  syncControls(next)
 }
+
+type PresetKey = 'vision' | 'motor' | 'focus' | 'reset'
+
+function applyPreset(preset: PresetKey) {
+  if (preset === 'vision') {
+    updateSettings({
+      highContrast: true,
+      textScale: Math.max(settings.textScale, 130),
+      telegraphBold: true,
+      palette: 'high',
+      projectileBold: true,
+    })
+    announce('Vision clarity preset applied. High contrast, larger text, and bright projectiles are enabled.')
+  } else if (preset === 'motor') {
+    updateSettings({
+      movementMode: 'click',
+      clickArriveRadius: 12,
+      followDeadzone: 24,
+      followGain: 0.9,
+      followMaxDist: 220,
+      followCurve: 0.9,
+      scanMode: true,
+      dwellEnabled: true,
+      dwellTime: 1200,
+    })
+    announce('Easy input preset applied. Click-to-move, dwell activation, and scan assistance are now on.')
+  } else if (preset === 'focus') {
+    updateSettings({
+      difficulty: 'relaxed',
+      telegraphMs: 260,
+      telegraphBold: true,
+      screenShake: false,
+      faceRepeatMs: 400,
+    })
+    announce('Calm pacing preset applied. Attacks telegraph longer and intense effects are reduced.')
+  } else if (preset === 'reset') {
+    updateSettings({ ...defaultSettings })
+    chkFace.checked = false
+    stopFace()
+    announce('All settings reset to their default values.')
+  }
+  if (settingsOverlay.classList.contains('visible')) {
+    if (stopSettingsScan) {
+      stopSettingsScan()
+      stopSettingsScan = null
+    }
+    if (settings.scanMode) stopSettingsScan = startScan(settingsOverlay)
+  }
+}
+
+let stopSettingsScan: (() => void) | null = null
+let stopRunoverScan: (() => void) | null = null
+let stopPauseScan: (() => void) | null = null
 
 btnSettings?.addEventListener('click', () => openSettings())
 btnCloseSettings.addEventListener('click', () => closeSettings())
 btnAdv?.addEventListener('click', () => {
-  const card = document.getElementById('settings-overlay')!
-  const on = !card.classList.contains('advanced')
-  card.classList.toggle('advanced', on)
-  if (btnAdv) { btnAdv.textContent = on ? 'Hide Advanced ▴' : 'Show Advanced ▾'; btnAdv.setAttribute('aria-pressed', on ? 'true' : 'false') }
+  const on = !settingsOverlay.classList.contains('advanced')
+  settingsOverlay.classList.toggle('advanced', on)
+  if (btnAdv) {
+    btnAdv.textContent = on ? 'Hide advanced controls ▴' : 'Show advanced controls ▾'
+    btnAdv.setAttribute('aria-pressed', on ? 'true' : 'false')
+    btnAdv.setAttribute('aria-expanded', on ? 'true' : 'false')
+  }
+  announce(on ? 'Advanced accessibility controls shown.' : 'Advanced accessibility controls hidden.')
 })
+btnPresetVision?.addEventListener('click', () => applyPreset('vision'))
+btnPresetMotor?.addEventListener('click', () => applyPreset('motor'))
+btnPresetFocus?.addEventListener('click', () => applyPreset('focus'))
+btnPresetReset?.addEventListener('click', () => applyPreset('reset'))
 if (btnPTT) initSpeech(btnPTT)
 chkFace.addEventListener('change', async () => {
   if (chkFace.checked) {
     try {
       await startFace({ onMove: dir => window.dispatchEvent(new CustomEvent('voice:command', { detail: { type: 'move', dir } })) })
+      announce('Face gestures enabled. Tilt left, right, up, or down to issue movement nudges.')
     } catch {
       chkFace.checked = false
+      announce('Face gestures could not start. Check camera permissions and try again.')
       // Non-blocking user feedback; rely on browser permission UI
       console.warn('Face gestures unavailable (camera or model load failed).')
     }
   } else {
     stopFace()
+    announce('Face gestures disabled.')
   }
 })
 initFaceInput(chkFace, { onMove: () => {} })
 chkContrast.addEventListener('change', () => updateSettings({ highContrast: chkContrast.checked }))
 rngText.addEventListener('input', () => updateSettings({ textScale: Number(rngText.value) }))
-chkScan.addEventListener('change', () => updateSettings({ scanMode: chkScan.checked }))
-chkDwell.addEventListener('change', () => updateSettings({ dwellEnabled: chkDwell.checked }))
+chkScan.addEventListener('change', () => {
+  updateSettings({ scanMode: chkScan.checked })
+  if (settingsOverlay.classList.contains('visible')) {
+    if (stopSettingsScan) {
+      stopSettingsScan()
+      stopSettingsScan = null
+    }
+    if (chkScan.checked) stopSettingsScan = startScan(settingsOverlay)
+  }
+  announce(chkScan.checked ? 'One-switch scan mode enabled. Focus will move through controls automatically.' : 'Scan mode disabled.')
+})
+chkDwell.addEventListener('change', () => {
+  updateSettings({ dwellEnabled: chkDwell.checked })
+  announce(chkDwell.checked ? 'Dwell activation enabled. Hover to click automatically.' : 'Dwell activation disabled.')
+})
 rngDwell.addEventListener('input', () => updateSettings({ dwellTime: Number(rngDwell.value) }))
 rngScan.addEventListener('input', () => updateSettings({ scanInterval: Number(rngScan.value) }))
 rngArrive.addEventListener('input', () => updateSettings({ clickArriveRadius: Number(rngArrive.value) }))
@@ -161,11 +305,27 @@ if (!progStart.currentStage || progStart.currentStage < 1) {
 function openSettings() {
   settingsOverlay.classList.add('visible')
   settingsOverlay.setAttribute('aria-hidden', 'false')
-  if (loadSettings().scanMode) startScan(settingsOverlay)
+  if (stopSettingsScan) {
+    stopSettingsScan()
+    stopSettingsScan = null
+  }
+  if (settings.scanMode) stopSettingsScan = startScan(settingsOverlay)
 }
 function closeSettings() {
   settingsOverlay.classList.remove('visible')
   settingsOverlay.setAttribute('aria-hidden', 'true')
+  if (stopSettingsScan) {
+    stopSettingsScan()
+    stopSettingsScan = null
+  }
+  if (statusRegion) {
+    statusRegion.classList.remove('visible')
+    statusRegion.textContent = ''
+  }
+  if (statusTimer != null) {
+    window.clearTimeout(statusTimer)
+    statusTimer = null
+  }
 }
 
 // Expose minimal for debugging
@@ -231,7 +391,11 @@ function openRunover(detail: { reason: 'time'|'defeat', stage: number, survived:
 
 
   }
-  if (settings.scanMode) startScan(runoverOverlay)
+  if (stopRunoverScan) {
+    stopRunoverScan()
+    stopRunoverScan = null
+  }
+  if (settings.scanMode) stopRunoverScan = startScan(runoverOverlay)
 }
 
 window.addEventListener('runover:open', (e: any) => openRunover(e.detail))
@@ -241,6 +405,10 @@ function restartGame() {
   if (!g) return
   const scene = g.scene.getScene('game')
   if (scene) scene.scene.restart()
+  if (stopRunoverScan) {
+    stopRunoverScan()
+    stopRunoverScan = null
+  }
   runoverOverlay.classList.remove('visible')
   runoverOverlay.setAttribute('aria-hidden', 'true')
   stageRewards.setAttribute('aria-hidden', 'true')
@@ -256,6 +424,10 @@ btnNextStage?.addEventListener('click', () => {
 })
 btnRetry?.addEventListener('click', () => { clearRunState(); restartGame() })
 btnMenu?.addEventListener('click', () => {
+  if (stopRunoverScan) {
+    stopRunoverScan()
+    stopRunoverScan = null
+  }
   runoverOverlay.classList.remove('visible')
   runoverOverlay.setAttribute('aria-hidden', 'true')
   clearRunState()
@@ -282,16 +454,28 @@ btnRewardBlast?.addEventListener('click', () => chooseReward('blast'))
 window.addEventListener('pause:open', () => {
   pauseOverlay.classList.add('visible')
   pauseOverlay.setAttribute('aria-hidden', 'false')
-  if (loadSettings().scanMode) startScan(pauseOverlay)
+  if (stopPauseScan) {
+    stopPauseScan()
+    stopPauseScan = null
+  }
+  if (settings.scanMode) stopPauseScan = startScan(pauseOverlay)
 })
 btnResume?.addEventListener('click', () => {
   pauseOverlay.classList.remove('visible')
   pauseOverlay.setAttribute('aria-hidden', 'true')
+  if (stopPauseScan) {
+    stopPauseScan()
+    stopPauseScan = null
+  }
   window.dispatchEvent(new CustomEvent('pause:resume'))
 })
 btnQuit?.addEventListener('click', () => {
   pauseOverlay.classList.remove('visible')
   pauseOverlay.setAttribute('aria-hidden', 'true')
+  if (stopPauseScan) {
+    stopPauseScan()
+    stopPauseScan = null
+  }
   clearRunState()
   const g: any = game
   if (g) g.scene.start('menu')
@@ -315,7 +499,10 @@ window.addEventListener('ui:practiceMode', (e: any) => {
   if (btnSettings) btnSettings.style.display = enabled ? '' : 'none'
   document.body.classList.toggle('practice-mode', enabled)
   if (enabled) { openSettings(); btnCloseSettings.style.display = 'none' }
-  else { btnCloseSettings.style.display = ''; settingsOverlay.classList.remove('visible'); settingsOverlay.setAttribute('aria-hidden', 'true') }
+  else {
+    btnCloseSettings.style.display = ''
+    closeSettings()
+  }
 })
 
 // Allow scenes to open Settings (practice startup)
